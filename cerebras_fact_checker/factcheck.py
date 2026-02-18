@@ -127,9 +127,9 @@ def fact_check_single_claim(
         top_sources = [str(top_sources)]
     top_sources = [str(u) for u in top_sources][:5]
 
-    # Get top 4 sources from our search results for display
+    # Include all search sources for display
     search_sources = []
-    for r in results[:4]:
+    for r in results:
         title = r.get("title") or "No title"
         url = r["url"]
         quality_tier = r.get("quality_tier", "Unknown")

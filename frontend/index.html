@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerebras FactCheck — AI-Powered Verification</title>
+    <meta name="description"
+        content="Verify claims instantly using Cerebras AI and authoritative web sources. Get verdicts with evidence-backed reasoning.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Top Progress Bar -->
+    <div class="progress-bar hidden" id="progressBar"></div>
+
+    <!-- Full-page gold particle canvas -->
+    <canvas id="goldCanvas"></canvas>
+
+    <!-- App Shell -->
+    <div class="app-shell">
+
+        <!-- ── NAVBAR ── -->
+        <nav class="navbar" id="navbar">
+            <div class="nav-left">
+                <a class="nav-brand" href="#">
+                    <div class="logo-icon">
+                        <svg width="34" height="34" viewBox="0 0 28 28" fill="none">
+                            <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#lg)" stroke-width="2" fill="none" />
+                            <path d="M14 2V26" stroke="url(#lg)" stroke-width="1.5" opacity="0.4" />
+                            <path d="M2 8L26 20" stroke="url(#lg)" stroke-width="1.5" opacity="0.2" />
+                            <path d="M26 8L2 20" stroke="url(#lg)" stroke-width="1.5" opacity="0.2" />
+                            <circle cx="14" cy="14" r="3" fill="url(#lg)" opacity="0.8" />
+                            <defs>
+                                <linearGradient id="lg" x1="0" y1="0" x2="28" y2="28">
+                                    <stop offset="0%" stop-color="#d4a853" />
+                                    <stop offset="50%" stop-color="#e8c878" />
+                                    <stop offset="100%" stop-color="#b8922e" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-name">Cerebras <span class="brand-highlight">FactCheck</span></span>
+                        <span class="brand-sub">AI-Powered Verification</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="nav-center">
+                <a href="#" class="nav-tab active" data-tab="single" id="tabSingle">Single Claim</a>
+                <a href="#" class="nav-tab" data-tab="text" id="tabText">Analyze Text</a>
+            </div>
+
+            <div class="nav-right">
+                <div class="nav-status" id="navStatus">
+                    <div class="status-dot"></div>
+                    <span>Connecting...</span>
+                </div>
+                <div id="usageBadge"></div>
+            </div>
+        </nav>
+
+        <!-- ── MAIN SPLIT PANEL ── -->
+        <div class="split-layout">
+
+            <!-- LEFT PANEL: Input -->
+            <div class="panel-left">
+
+                <!-- Particles -->
+                <div id="particles"></div>
+
+                <!-- Single Claim Tab -->
+                <div class="input-section" id="singleTab">
+                    <div class="input-header">
+                        <h2 class="input-title">
+                            <span class="title-word">Verify</span>
+                            <span class="title-word accent">a Claim</span>
+                            <span class="title-cursor"></span>
+                        </h2>
+                        <p class="input-subtitle">Enter any claim to get an AI-powered verdict backed by authoritative
+                            sources.
+                        </p>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="field-label">Claim</label>
+                        <div class="textarea-wrapper">
+                            <textarea id="claimInput"
+                                placeholder='e.g. "The Great Wall of China is visible from space."' rows="5"
+                                oninput="toggleClearBtn('claimInput', 'clearClaim')"></textarea>
+                            <button class="clear-input-btn" id="clearClaim" onclick="clearInput('claimInput')"
+                                aria-label="Clear text">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="controls-row">
+                        <div class="control-pill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 16v-4M12 8h.01" />
+                            </svg>
+                            <label for="reasoningEffort">Reasoning</label>
+                            <div class="select-display" onclick="toggleDropdown('reasoningDropdown')">
+                                <span>Medium</span>
+                                <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="1 1 5 5 9 1"></polyline>
+                                </svg>
+                            </div>
+                            <div class="select-menu" id="reasoningDropdown">
+                                <div class="select-option" onclick="selectOption('reasoningEffort', 'low', 'Low')">Low
+                                </div>
+                                <div class="select-option selected"
+                                    onclick="selectOption('reasoningEffort', 'medium', 'Medium')">Medium</div>
+                                <div class="select-option" onclick="selectOption('reasoningEffort', 'high', 'High')">
+                                    High</div>
+                            </div>
+                            <input type="hidden" id="reasoningEffort" value="medium">
+                        </div>
+                        <div class="control-pill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            <label for="numSources">Source Count</label>
+                            <div class="select-display" onclick="toggleDropdown('sourceDropdown')">
+                                <span>3</span>
+                                <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="1 1 5 5 9 1"></polyline>
+                                </svg>
+                            </div>
+                            <div class="select-menu" id="sourceDropdown">
+                                <div class="select-option" onclick="selectOption('numSources', '1', '1')">1</div>
+                                <div class="select-option" onclick="selectOption('numSources', '2', '2')">2</div>
+                                <div class="select-option selected" onclick="selectOption('numSources', '3', '3')">3
+                                </div>
+                                <div class="select-option" onclick="selectOption('numSources', '4', '4')">4</div>
+                                <div class="select-option" onclick="selectOption('numSources', '5', '5')">5</div>
+                                <div class="select-option" onclick="selectOption('numSources', '6', '6')">6</div>
+                            </div>
+                            <input type="hidden" id="numSources" value="3">
+                        </div>
+                    </div>
+
+                    <button id="checkBtn" class="btn-verify" onclick="handleFactCheck()">
+                        <span class="btn-icon">⬡</span>
+                        <span class="btn-text">Verify Claim</span>
+                        <span class="btn-loader">
+                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        </span>
+                        <span class="btn-scan"></span>
+                    </button>
+
+                    <!-- Example Claims -->
+                    <div class="examples-section">
+                        <div class="examples-label">Try an example</div>
+                        <div class="examples-grid">
+                            <button class="example-chip"
+                                onclick="setExample('The speed of light is approximately 300,000 kilometers per second.')">⚡
+                                Speed of light</button>
+                            <button class="example-chip"
+                                onclick="setExample('Mount Everest is the tallest mountain in the world.')">🏔️ Mount
+                                Everest</button>
+                            <button class="example-chip"
+                                onclick="setExample('Python was created by Guido van Rossum in 1991.')">🐍 Python
+                                origins</button>
+                            <button class="example-chip" onclick="setExample('The human body has 206 bones.')">🦴 Human
+                                bones</button>
+                            <button class="example-chip"
+                                onclick="setExample('Water boils at 100 degrees Celsius at sea level.')">💧 Boiling
+                                point</button>
+                            <button class="example-chip" onclick="setExample('The Earth is flat.')">🌍 Flat
+                                Earth</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analyze Text Tab -->
+                <div class="input-section" id="textTab" style="display:none;">
+                    <div class="input-header">
+                        <h2 class="input-title">
+                            <span class="title-word">Analyze</span>
+                            <span class="title-word accent">Text</span>
+                            <span class="title-cursor"></span>
+                        </h2>
+                        <p class="input-subtitle">Paste an article or passage — the AI will extract and fact-check every
+                            key claim.</p>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="field-label">Text Passage</label>
+                        <div class="textarea-wrapper">
+                            <textarea id="textInput" placeholder="Paste an article or text passage here..." rows="7"
+                                oninput="toggleClearBtn('textInput', 'clearText')"></textarea>
+                            <button class="clear-input-btn" id="clearText" onclick="clearInput('textInput')"
+                                aria-label="Clear text">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="controls-row">
+                        <div class="control-pill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 16v-4M12 8h.01" />
+                            </svg>
+                            <label for="textReasoningEffort">Reasoning</label>
+                            <div class="select-display" onclick="toggleDropdown('textReasoningDropdown')">
+                                <span>Medium</span>
+                                <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="1 1 5 5 9 1"></polyline>
+                                </svg>
+                            </div>
+                            <div class="select-menu" id="textReasoningDropdown">
+                                <div class="select-option" onclick="selectOption('textReasoningEffort', 'low', 'Low')">
+                                    Low</div>
+                                <div class="select-option selected"
+                                    onclick="selectOption('textReasoningEffort', 'medium', 'Medium')">Medium</div>
+                                <div class="select-option"
+                                    onclick="selectOption('textReasoningEffort', 'high', 'High')">High</div>
+                            </div>
+                            <input type="hidden" id="textReasoningEffort" value="medium">
+                        </div>
+                        <div class="control-pill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            <label for="textNumSources">Source Count</label>
+                            <div class="select-display" onclick="toggleDropdown('textSourceDropdown')">
+                                <span>3</span>
+                                <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="1 1 5 5 9 1"></polyline>
+                                </svg>
+                            </div>
+                            <div class="select-menu" id="textSourceDropdown">
+                                <div class="select-option" onclick="selectOption('textNumSources', '1', '1')">1</div>
+                                <div class="select-option" onclick="selectOption('textNumSources', '2', '2')">2</div>
+                                <div class="select-option selected" onclick="selectOption('textNumSources', '3', '3')">3
+                                </div>
+                                <div class="select-option" onclick="selectOption('textNumSources', '4', '4')">4</div>
+                                <div class="select-option" onclick="selectOption('textNumSources', '5', '5')">5</div>
+                                <div class="select-option" onclick="selectOption('textNumSources', '6', '6')">6</div>
+                            </div>
+                            <input type="hidden" id="textNumSources" value="3">
+                            <input type="hidden" id="maxClaims" value="6">
+                        </div>
+                    </div>
+
+                    <button id="analyzeBtn" class="btn-verify" onclick="handleTextAnalysis()">
+                        <span class="btn-icon">⬡</span>
+                        <span class="btn-text">Analyze Text</span>
+                        <span class="btn-loader">
+                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- History -->
+                <div class="history-section" id="historySection" style="display:none;">
+                    <div class="history-header">
+                        <span class="history-title">Recent Checks</span>
+                        <button class="history-clear" onclick="clearHistory()">Clear</button>
+                    </div>
+                    <div id="historyList" class="history-list"></div>
+                </div>
+
+            </div><!-- /panel-left -->
+
+            <!-- RIGHT PANEL: Results -->
+            <div class="panel-right">
+                <div class="results-header">
+                    <span class="results-title">Results</span>
+                    <button class="results-clear-btn" id="resultsClearBtn" onclick="clearResults()"
+                        style="display:none;">✕ Clear</button>
+                </div>
+
+                <!-- Empty state -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                            <path d="M24 4L4 14V34L24 44L44 34V14L24 4Z" stroke="rgba(212,168,83,0.3)" stroke-width="2"
+                                fill="none" />
+                            <path d="M24 4V44" stroke="rgba(212,168,83,0.15)" stroke-width="1.5" />
+                            <path d="M4 14L44 34" stroke="rgba(212,168,83,0.1)" stroke-width="1.5" />
+                            <path d="M44 14L4 34" stroke="rgba(212,168,83,0.1)" stroke-width="1.5" />
+                            <circle cx="24" cy="24" r="5" fill="rgba(212,168,83,0.2)" />
+                        </svg>
+                    </div>
+                    <p class="empty-title">No results yet</p>
+                    <p class="empty-sub" id="emptySub">Enter a claim on the left and hit <strong>Verify Claim</strong>
+                        to get started.
+                    </p>
+                </div>
+
+                <!-- Result area -->
+                <div id="resultArea" class="result-area"></div>
+                <div id="textResultArea" class="result-area"></div>
+
+            </div><!-- /panel-right -->
+
+        </div><!-- /split-layout -->
+
+    </div><!-- /app-shell -->
+
+    <script src="app.js"></script>
+</body>
+
+</html>

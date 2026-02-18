@@ -35,13 +35,27 @@ def score_source_quality(url: str) -> tuple[int, str]:
     if any(domain.endswith(tld) for tld in ['.org']):
         return (70, 'Organization')
     
-    # Tier 5: Other sources - deprioritize
-    # Low-quality patterns
+    # Tier 5: Low-quality — content farms, directories, user-generated, e-commerce
     low_quality_patterns = [
-        'onefivenine.com',  # Village directories
-        'villageinfo.in',
-        'mapsofindia.com',
-        'citypopulation.de',
+        # Content farms & aggregators
+        'onefivenine.com', 'villageinfo.in', 'mapsofindia.com',
+        'citypopulation.de', 'answers.com', 'ehow.com', 'about.com',
+        # User-generated blogs (no editorial review)
+        'medium.com', 'substack.com', 'wordpress.com',
+        'blogger.com', 'blogspot.com', 'tumblr.com',
+        # Business directories & reviews
+        'justdial.com', 'sulekha.com', 'indiamart.com',
+        'yellowpages.com', 'yelp.com', 'glassdoor.com',
+        'trustpilot.com', 'mouthshut.com',
+        # E-commerce (product pages, not facts)
+        'amazon.com', 'amazon.in', 'flipkart.com', 'ebay.com',
+        # Travel & lifestyle reviews
+        'tripadvisor.com', 'booking.com', 'zomato.com', 'swiggy.com',
+        # Crowdsourced / user-uploaded docs
+        'scribd.com', 'issuu.com', 'slideshare.net',
+        'wikihow.com', 'wikidata.org',
+        # Website builders (anyone can publish)
+        'wix.com', 'weebly.com', 'sites.google.com',
     ]
     if any(pattern in domain for pattern in low_quality_patterns):
         return (10, 'Low-quality')
@@ -96,15 +110,21 @@ def search_web(
     objective = (
         "Find high-quality, up-to-date sources that answer the question:\n\n"
         f"{queries[0]}\n\n"
-        "Prefer authoritative sites (e.g., .gov, .edu, major news, or official org websites). "
-        "EXCLUDE Wikipedia and other wiki sites."
+        "ONLY return results from highly authoritative sources: "
+        "government (.gov), educational (.edu), major established news organizations, "
+        "scientific journals, and official organizational websites.\n"
+        "EXCLUDE: Wikipedia, wikis, social media, forums, Q&A sites (Quora, Reddit), "
+        "blogs, review sites, e-commerce, business directories, and any user-generated content."
     )
+
+    # Request extra results to compensate for aggressive post-filtering
+    fetch_count = num * 3 + 4
 
     search = parallel_client.beta.search(
         objective=objective,
         search_queries=queries,
         mode=mode,
-        max_results=num,
+        max_results=fetch_count,
         excerpts={
             "max_chars_per_result": max_chars_per_result,
         },
@@ -113,11 +133,27 @@ def search_web(
     all_results: list[dict[str, Any]] = []
     wikipedia_count = 0
     
+    # Hard-exclude: sources that should NEVER appear in fact-checking results
+    excluded_domains = [
+        # Wikis & crowdsourced knowledge
+        "wikipedia.org", "wiki/", "fandom.com", "wikia.com",
+        # Q&A / Forums / User-generated opinion platforms
+        "quora.com", "reddit.com", "yahoo.com/answers",
+        "stackexchange.com", "stackoverflow.com",
+        "warriorforum.com", "discourse.org",
+        # Social media
+        "twitter.com", "x.com", "facebook.com", "instagram.com",
+        "tiktok.com", "pinterest.com", "linkedin.com/posts",
+        "threads.net", "mastodon.", "bsky.app",
+        # Video platforms (transcripts unreliable)
+        "youtube.com", "youtu.be", "vimeo.com",
+    ]
+
     for r in search.results:
         url_lower = r.url.lower()
         
-        # Completely exclude Wikipedia
-        if any(domain in url_lower for domain in ["wikipedia.org", "wiki/"]):
+        # Completely exclude unreliable sources
+        if any(domain in url_lower for domain in excluded_domains):
             wikipedia_count += 1
             continue
         

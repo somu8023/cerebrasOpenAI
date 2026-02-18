@@ -1,0 +1,6 @@
+Flask
+flask-cors
+python-dotenv
+cerebras-cloud-sdk
+parallel-web
+requests
