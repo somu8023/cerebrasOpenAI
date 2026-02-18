@@ -2410,6 +2410,83 @@ textarea::placeholder {
     /* Input Section Adjustments */
     .input-section {
         padding: 24px 20px 32px;
+        transition: padding var(--t-normal);
+    }
+
+    /* Collapsed State (Mobile) */
+    .input-section.collapsed {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-nav);
+        /* Blend with nav */
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .collapsed-header {
+        display: none;
+        /* Hidden by default */
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        cursor: pointer;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .input-section.collapsed .collapsed-header {
+        display: flex;
+    }
+
+    .input-section.collapsed .input-header,
+    .input-section.collapsed .input-group,
+    .input-section.collapsed .controls-row,
+    .input-section.collapsed .btn-verify,
+    .input-section.collapsed .examples-section {
+        display: none !important;
+    }
+
+    .collapsed-claim {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .collapsed-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: 2px;
+    }
+
+    .collapsed-text {
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 500;
+    }
+
+    .collapsed-edit-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: rgba(212, 168, 83, 0.1);
+        border: 1px solid rgba(212, 168, 83, 0.2);
+        border-radius: var(--r-pill);
+        color: var(--primary);
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .collapsed-edit-btn:hover {
+        background: rgba(212, 168, 83, 0.2);
     }
 
     /* Prevent textarea from blowing up layout */

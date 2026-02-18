@@ -843,7 +843,46 @@ function clearInput(inputId) {
 document.addEventListener('click', e => {
     if (e.target.matches('.example-chip') || e.target.closest('.example-chip')) {
         setTimeout(() => {
-            toggleClearBtn('claimInput', 'clearClaim');
+            const inputId = document.getElementById('textTab').style.display === 'none' ? 'claimInput' : 'textInput';
+            const clearBtnId = inputId === 'claimInput' ? 'clearClaim' : 'clearText';
+            toggleClearBtn(inputId, clearBtnId);
         }, 50);
     }
 });
+
+/* ============================================================
+   MOBILE COLLAPSE LOGIC
+   ============================================================ */
+function toggleMobileInput(collapsed) {
+    // Only apply on mobile width
+    if (window.innerWidth > 900) return;
+
+    const inputSection = document.getElementById('singleTab');
+    const claimInput = document.getElementById('claimInput');
+    const collapsedClaimText = document.getElementById('collapsedClaimText');
+
+    if (!inputSection || !claimInput || !collapsedClaimText) return;
+
+    if (collapsed) {
+        // Set summary text
+        const claim = claimInput.value.trim() || 'No claim entered';
+        collapsedClaimText.textContent = claim;
+        inputSection.classList.add('collapsed');
+
+        // Scroll to top of results (or top of page since input is sticky)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        inputSection.classList.remove('collapsed');
+    }
+}
+
+// Hook into fact check to collapse on submit
+const originalHandleFactCheck = handleFactCheck;
+handleFactCheck = async function () {
+    // Collapse first if mobile
+    if (window.innerWidth <= 900) {
+        toggleMobileInput(true);
+    }
+    // Call original function
+    await originalHandleFactCheck.apply(this, arguments);
+};
