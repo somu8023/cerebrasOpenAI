@@ -2336,7 +2336,7 @@ textarea::placeholder {
    ============================================ */
 
 /* ============================================
-   RESPONSIVE LAYOUT
+   RESPONSIVE DESIGN
    ============================================ */
 
 /* Laptop/Tablet (Below 1100px) - Narrower split */
@@ -2356,34 +2356,39 @@ textarea::placeholder {
         --left-w: 100%;
     }
 
-    .split-layout {
-        flex-direction: column;
+    body {
+        overflow: auto;
+        /* Allow native scrolling */
         height: auto;
-        min-height: calc(100vh - var(--nav-h));
-        overflow: visible;
-        /* Allow page scroll */
+        min-height: 100vh;
     }
 
     .app-shell {
-        overflow-y: auto;
-        /* Enable scroll on body shell */
-        -webkit-overflow-scrolling: touch;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
+    .split-layout {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
     }
 
     /* Left Panel (Input) floats to top */
     .panel-left {
         width: 100%;
         height: auto;
-        min-height: auto;
+        /* Let content dictate height */
+        max-height: none;
         overflow: visible;
         border-right: none;
         border-bottom: 1px solid var(--panel-divider);
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
         z-index: 10;
-        /* Ensure dropdowns visible */
     }
 
-    /* Move the gold accent from right-edge to bottom-edge */
+    /* Gold accent at bottom instead of right */
     .panel-left::before {
         width: 100%;
         height: 1px;
@@ -2393,31 +2398,34 @@ textarea::placeholder {
         background: linear-gradient(90deg, transparent, rgba(212, 168, 83, 0.6), transparent);
     }
 
+    /* Right Panel (Results) below */
+    .panel-right {
+        width: 100%;
+        height: auto;
+        min-height: 50vh;
+        overflow: visible;
+        padding-bottom: 40px;
+    }
+
     /* Input Section Adjustments */
     .input-section {
         padding: 24px 20px 32px;
     }
 
+    /* Prevent textarea from blowing up layout */
     textarea {
         min-height: 100px;
+        max-height: 300px;
+        /* Limit expansion */
     }
 
-    /* Results Section (Bottom) */
-    .results-section {
-        width: 100%;
-        height: auto;
-        min-height: 50vh;
-        /* Ensure space for results */
-        padding: 24px 20px;
-        overflow: visible;
+    /* Hide nav center on mobile to save space */
+    .nav-center {
+        display: none;
     }
 
-    /* Remove the 'absolute/fixed' centering if present */
-    .initial-state {
-        position: static;
-        transform: none;
-        margin: 40px auto;
-        padding: 20px;
+    .nav-right .nav-status {
+        display: none;
     }
 }
 
@@ -2463,60 +2471,20 @@ textarea::placeholder {
         font-size: 0.65rem;
     }
 
-    /* Simplify particles on weak mobiles */
+    /* Simplify particles on mobile */
     .particle {
         display: none;
     }
 
     /* Adjust Example Chips */
-    .example-grid {
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    .examples-grid {
         gap: 6px;
     }
 
     .example-chip {
         font-size: 0.75rem;
         padding: 8px 12px;
-    }
-}
-
-@media (max-width: 900px) {
-    :root {
-        --left-w: 400px;
-    }
-}
-
-@media (max-width: 700px) {
-    body {
-        overflow: auto;
-    }
-
-    .app-shell {
-        height: auto;
-    }
-
-    .split-layout {
-        flex-direction: column;
-        height: auto;
-    }
-
-    .panel-left {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--panel-divider);
-        overflow: visible;
-    }
-
-    .panel-right {
-        overflow: visible;
-        min-height: 400px;
-    }
-
-    .nav-center {
-        display: none;
-    }
-
-    .nav-right .nav-status {
-        display: none;
+        flex: 1 1 auto;
+        text-align: center;
     }
 }
