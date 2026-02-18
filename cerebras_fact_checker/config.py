@@ -16,7 +16,7 @@ def _getenv(name: str, default: str | None = None) -> str | None:
 class Settings:
     cerebras_api_key: str
     parallel_api_key: str
-    cerebras_model_name: str = "gpt-oss-120B"
+    cerebras_model_name: str = "llama3.1-70b"
     parallel_search_mode: str = "one-shot"
     parallel_max_results: int = 6
 
@@ -30,7 +30,7 @@ def load_settings() -> Settings:
             "Set CEREBRAS_API_KEY and PARALLEL_API_KEY as environment variables (or in a .env file)."
         )
 
-    model = _getenv("CEREBRAS_MODEL_NAME", "gpt-oss-120B") or "gpt-oss-120B"
+    model = _getenv("CEREBRAS_MODEL_NAME", "llama3.1-70b") or "llama3.1-70b"
     mode = _getenv("PARALLEL_SEARCH_MODE", "one-shot") or "one-shot"
 
     max_results_raw = _getenv("PARALLEL_MAX_RESULTS")

@@ -2335,9 +2335,148 @@ textarea::placeholder {
    RESPONSIVE
    ============================================ */
 
+/* ============================================
+   RESPONSIVE LAYOUT
+   ============================================ */
+
+/* Laptop/Tablet (Below 1100px) - Narrower split */
 @media (max-width: 1100px) {
     :root {
-        --left-w: 460px;
+        --left-w: 420px;
+    }
+
+    .input-section {
+        padding: 24px;
+    }
+}
+
+/* Tablet/Mobile Stack (Below 900px) - Vertical Column Layout */
+@media (max-width: 900px) {
+    :root {
+        --left-w: 100%;
+    }
+
+    .split-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - var(--nav-h));
+        overflow: visible;
+        /* Allow page scroll */
+    }
+
+    .app-shell {
+        overflow-y: auto;
+        /* Enable scroll on body shell */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Left Panel (Input) floats to top */
+    .panel-left {
+        width: 100%;
+        height: auto;
+        min-height: auto;
+        overflow: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--panel-divider);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        z-index: 10;
+        /* Ensure dropdowns visible */
+    }
+
+    /* Move the gold accent from right-edge to bottom-edge */
+    .panel-left::before {
+        width: 100%;
+        height: 1px;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        background: linear-gradient(90deg, transparent, rgba(212, 168, 83, 0.6), transparent);
+    }
+
+    /* Input Section Adjustments */
+    .input-section {
+        padding: 24px 20px 32px;
+    }
+
+    textarea {
+        min-height: 100px;
+    }
+
+    /* Results Section (Bottom) */
+    .results-section {
+        width: 100%;
+        height: auto;
+        min-height: 50vh;
+        /* Ensure space for results */
+        padding: 24px 20px;
+        overflow: visible;
+    }
+
+    /* Remove the 'absolute/fixed' centering if present */
+    .initial-state {
+        position: static;
+        transform: none;
+        margin: 40px auto;
+        padding: 20px;
+    }
+}
+
+/* Mobile (Below 600px) */
+@media (max-width: 600px) {
+    .navbar {
+        padding: 0 16px;
+    }
+
+    .brand-sub {
+        display: none;
+    }
+
+    .brand-name {
+        font-size: 1.1rem;
+    }
+
+    .nav-tab {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+
+    .input-title {
+        font-size: 1.25rem;
+    }
+
+    .input-subtitle {
+        font-size: 0.8rem;
+    }
+
+    .controls-row {
+        gap: 8px;
+    }
+
+    .control-pill {
+        min-width: calc(50% - 5px);
+        /* 2 columns */
+        flex: 1 1 auto;
+        padding: 0 12px;
+    }
+
+    .field-label {
+        font-size: 0.65rem;
+    }
+
+    /* Simplify particles on weak mobiles */
+    .particle {
+        display: none;
+    }
+
+    /* Adjust Example Chips */
+    .example-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 6px;
+    }
+
+    .example-chip {
+        font-size: 0.75rem;
+        padding: 8px 12px;
     }
 }
 
