@@ -65,10 +65,11 @@ def score_source_quality(url: str) -> tuple[int, str]:
 
 
 def generate_search_variations(claim: str) -> list[str]:
-    """Generate multiple search query variations from a claim to improve search accuracy.
+    import datetime
+    import re
     
-    This helps avoid issues where similar words (like 'Patna' vs 'Patan') cause confusion.
-    """
+    current_year = str(datetime.datetime.now().year)
+
     queries = [
         claim,  # Original claim
         f"verify: {claim}",  # Verification framing
@@ -84,7 +85,11 @@ def generate_search_variations(claim: str) -> list[str]:
             queries.append(f"where is {entity}")
             queries.append(f"{entity} location")
             queries.append(f"{entity} {location}")
-    
+            
+    # Auto-inject current year if no year is mentioned in the claim
+    if not re.search(r'\b(19|20)\d{2}\b', claim):
+        queries.append(f"{claim} {current_year}")
+
     return queries[:5]  # Limit to 5 variations
 
 
@@ -107,15 +112,37 @@ def search_web(
         queries = query
     
     # Use first query for objective, but search with all variations
-    objective = (
-        "Find high-quality, up-to-date sources that answer the question:\n\n"
-        f"{queries[0]}\n\n"
-        "ONLY return results from highly authoritative sources: "
-        "government (.gov), educational (.edu), major established news organizations, "
-        "scientific journals, and official organizational websites.\n"
-        "EXCLUDE: Wikipedia, wikis, social media, forums, Q&A sites (Quora, Reddit), "
-        "blogs, review sites, e-commerce, business directories, and any user-generated content."
-    )
+    import textwrap
+    objective = textwrap.dedent(
+        f"""
+        Find high-quality, up-to-date sources that answer the question: {queries[0]}
+        
+        ONLY return results from highly authoritative sources:
+        - Government (.gov)
+        - Educational (.edu)
+        - Peer-reviewed journals
+        - Official statistical agencies
+        - Major established news organizations citing primary data
+
+        EXCLUDE:
+        - Wikipedia and wikis
+        - Social media
+        - Forums
+        - Q&A sites (Quora, Reddit, StackExchange)
+        - Blogs and opinion pieces
+        - Review sites
+        - E-commerce sites
+        - Business directories
+        - User-generated content
+        - Dataset portals or catalog pages without reported statistics
+
+        CRITICAL EVIDENCE REQUIREMENTS:
+
+        - Only return excerpts that contain explicit factual or quantitative evidence.
+        - The number must be visible in the article text (not only in downloadable files).
+        - If the query does not specify a year, prioritize pulling text that contains recent data or current year estimates.
+        """
+    ).strip()
 
     # Request extra results to compensate for aggressive post-filtering
     fetch_count = num * 3 + 4

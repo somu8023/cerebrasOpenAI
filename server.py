@@ -197,6 +197,7 @@ def api_fact_check_text():
             reasoning_effort=reasoning_effort,
         )
         elapsed = time.time() - start_time
+        increment_usage()
         return jsonify({
             "results": results,
             "total_claims": len(results),

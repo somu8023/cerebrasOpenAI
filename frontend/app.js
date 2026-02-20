@@ -253,13 +253,18 @@ async function checkUsage() {
 }
 
 function renderUsageBadge() {
-    const badge = $('usageBadge');
-    if (!badge || !usageData) return;
+    const badges = [
+        document.querySelector('#usageBadge'),
+        document.querySelector('#usageBadgeMobile')
+    ].filter(Boolean);
+
+    if (!badges.length || !usageData) return;
 
     if (isSuperuser) {
-        badge.style.cssText = 'background:rgba(212,168,83,0.12);border:1px solid rgba(212,168,83,0.3);color:#d4a853;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;';
-        badge.innerHTML = '⚡ Superuser — Unlimited';
-        // Re-enable buttons
+        badges.forEach(b => {
+            b.style.cssText = 'background:rgba(212,168,83,0.12);border:1px solid rgba(212,168,83,0.3);color:#d4a853;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;';
+            b.innerHTML = '⚡ Superuser — Unlimited';
+        });
         const btn = $('checkBtn');
         if (btn) btn.disabled = false;
         return;
@@ -269,16 +274,13 @@ function renderUsageBadge() {
     const pct = used / max;
     const color = pct >= 1 ? '#f87171' : pct >= 0.5 ? '#fbbf24' : '#4ade80';
 
-    badge.style.cssText = `background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);color:${color};padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;`;
-    badge.innerHTML = `${remaining} check${remaining === 1 ? '' : 's'} left`;
+    badges.forEach(b => {
+        b.style.cssText = `background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);color:${color};padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;`;
+        b.innerHTML = `${remaining} check${remaining === 1 ? '' : 's'} left`;
+    });
 
-    // Disable verify button when limit reached
     const btn = $('checkBtn');
-    if (btn) {
-        // btn.disabled = remaining === 0;
-        // btn.title = remaining === 0 ? 'Free limit reached' : '';
-        btn.disabled = false;
-    }
+    if (btn) btn.disabled = false;
 }
 
 /* ============================================================
@@ -573,13 +575,37 @@ function renderSkeleton() {
     </div>`;
 }
 
+function formatReasoning(text) {
+    if (!text) return '';
+    let formatted = escHtml(text);
+
+    // Bold: **text** -> <strong>text</strong>
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary); font-weight: 600;">$1</strong>');
+
+    // Convert newlines to breaks
+    formatted = formatted.replace(/\n/g, '<br>');
+
+    // Convert structured bullet dashes to colored visual bullets
+    // Catches instances like "- " at the start or after a break
+    formatted = formatted.replace(/(?:^|<br>|\s{2,})-\s+/g, '<br><span style="color:var(--primary); margin-right:6px;">&bull;</span> ');
+
+    // Highlight numbered lists (e.g. 1. 2.)
+    formatted = formatted.replace(/(?:^|<br>|\s{2,})(\d+\.)\s+/g, '<br><span style="color:var(--primary); margin-right:4px; font-weight:600;">$1</span> ');
+
+    // Clean up excessive <br>
+    formatted = formatted.replace(/(<br>\s*){3,}/g, '<br><br>');
+    formatted = formatted.replace(/^(<br>\s*)+/, '');
+
+    return formatted;
+}
+
 function renderResultCard(data, claim) {
     const verdict = (data.verdict || 'UNCERTAIN').toUpperCase();
     const verdictClass = verdict === 'TRUE' ? 'true' : verdict === 'FALSE' ? 'false' : 'uncertain';
     const icon = verdict === 'TRUE' ? '✓' : verdict === 'FALSE' ? '✕' : '?';
     const label = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
 
-    // API response fields: search_sources (rich objects), sources (cited URLs), reason (string)
+    // API response fields
     const searchSources = data.search_sources || [];
     const citedUrls = new Set(data.sources || []);
     const reasoning = data.reason || data.reasoning || data.explanation || '';
@@ -604,7 +630,7 @@ function renderResultCard(data, claim) {
         ${reasoning ? `
         <div class="result-reason">
             <h4>Reasoning</h4>
-            <p>${escHtml(reasoning)}</p>
+            <p>${formatReasoning(reasoning)}</p>
         </div>` : ''}
 
         ${searchSources.length ? `
