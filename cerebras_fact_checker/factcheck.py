@@ -190,11 +190,23 @@ def fact_check_single_claim(
     except Exception as e:
         print("Error parsing judgment JSON:", e)
         print("Raw model output:\n", raw)
-        data = {
-            "verdict": "uncertain",
-            "reason": "Could not parse model output.",
-            "top_sources": [],
-        }
+        # Last-ditch: try to find a JSON object anywhere in the raw string
+        m = re.search(r"(\{.*\})", raw, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+            except Exception:
+                data = {
+                    "verdict": "uncertain",
+                    "reason": "Could not parse model output.",
+                    "top_sources": [],
+                }
+        else:
+            data = {
+                "verdict": "uncertain",
+                "reason": "Could not parse model output.",
+                "top_sources": [],
+            }
 
     verdict = str(data.get("verdict", "uncertain")).lower()
     if verdict not in {"true", "false", "uncertain"}:

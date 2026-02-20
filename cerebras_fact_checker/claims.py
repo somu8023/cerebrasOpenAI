@@ -15,7 +15,14 @@ def _strip_json_fences(raw: str) -> str:
     raw = raw.strip()
     raw = _CODE_FENCE_PREFIX_RE.sub("", raw)
     raw = _CODE_FENCE_SUFFIX_RE.sub("", raw)
-    return raw.strip()
+    raw = raw.strip()
+    # If the model wrapped JSON in prose (e.g. extended-thinking / high reasoning),
+    # extract the first {...} block so json.loads() can succeed.
+    if not raw.startswith("{"):
+        m = re.search(r"(\{.*\})", raw, re.DOTALL)
+        if m:
+            raw = m.group(1)
+    return raw
 
 
 def extract_claims_from_text(

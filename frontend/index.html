@@ -116,10 +116,12 @@
                             <div class="textarea-wrapper">
                                 <textarea id="claimInput"
                                     placeholder='e.g. "The Great Wall of China is visible from space."' rows="5"
-                                    oninput="toggleClearBtn('claimInput', 'clearClaim')"></textarea>
+                                    maxlength="500"
+                                    oninput="toggleClearBtn('claimInput', 'clearClaim'); updateCharCount('claimInput', 'claimCounter', 500)"></textarea>
                                 <button class="clear-input-btn" id="clearClaim" onclick="clearInput('claimInput')"
                                     aria-label="Clear text">✕</button>
                             </div>
+                            <div class="char-counter" id="claimCounter">0 / 500</div>
                         </div>
 
                         <div class="controls-row">
@@ -139,14 +141,9 @@
                                     </svg>
                                 </div>
                                 <div class="select-menu" id="reasoningDropdown">
-                                    <div class="select-option" onclick="selectOption('reasoningEffort', 'low', 'Low')">
-                                        Low
-                                    </div>
-                                    <div class="select-option selected"
-                                        onclick="selectOption('reasoningEffort', 'medium', 'Medium')">Medium</div>
-                                    <div class="select-option"
-                                        onclick="selectOption('reasoningEffort', 'high', 'High')">
-                                        High</div>
+                                    <div class="select-option" data-value="low" onmousedown="selectOption('reasoningEffort', 'low', 'Low')">Low</div>
+                                    <div class="select-option selected" data-value="medium" onmousedown="selectOption('reasoningEffort', 'medium', 'Medium')">Medium</div>
+                                    <div class="select-option" data-value="high" onmousedown="selectOption('reasoningEffort', 'high', 'High')">High</div>
                                 </div>
                                 <input type="hidden" id="reasoningEffort" value="medium">
                             </div>
@@ -166,13 +163,12 @@
                                     </svg>
                                 </div>
                                 <div class="select-menu" id="sourceDropdown">
-                                    <div class="select-option" onclick="selectOption('numSources', '1', '1')">1</div>
-                                    <div class="select-option" onclick="selectOption('numSources', '2', '2')">2</div>
-                                    <div class="select-option selected" onclick="selectOption('numSources', '3', '3')">3
-                                    </div>
-                                    <div class="select-option" onclick="selectOption('numSources', '4', '4')">4</div>
-                                    <div class="select-option" onclick="selectOption('numSources', '5', '5')">5</div>
-                                    <div class="select-option" onclick="selectOption('numSources', '6', '6')">6</div>
+                                    <div class="select-option" data-value="1" onmousedown="selectOption('numSources', '1', '1')">1</div>
+                                    <div class="select-option" data-value="2" onmousedown="selectOption('numSources', '2', '2')">2</div>
+                                    <div class="select-option selected" data-value="3" onmousedown="selectOption('numSources', '3', '3')">3</div>
+                                    <div class="select-option" data-value="4" onmousedown="selectOption('numSources', '4', '4')">4</div>
+                                    <div class="select-option" data-value="5" onmousedown="selectOption('numSources', '5', '5')">5</div>
+                                    <div class="select-option" data-value="6" onmousedown="selectOption('numSources', '6', '6')">6</div>
                                 </div>
                                 <input type="hidden" id="numSources" value="3">
                             </div>
@@ -185,6 +181,7 @@
                                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                             </span>
                             <span class="btn-scan"></span>
+                            <span class="btn-ring"></span>
                         </button>
 
                         <!-- Example Claims -->
@@ -230,10 +227,12 @@
                             <label class="field-label">Text Passage</label>
                             <div class="textarea-wrapper">
                                 <textarea id="textInput" placeholder="Paste an article or text passage here..." rows="7"
-                                    oninput="toggleClearBtn('textInput', 'clearText')"></textarea>
+                                    maxlength="5000"
+                                    oninput="toggleClearBtn('textInput', 'clearText'); updateCharCount('textInput', 'textCounter', 5000)"></textarea>
                                 <button class="clear-input-btn" id="clearText" onclick="clearInput('textInput')"
                                     aria-label="Clear text">✕</button>
                             </div>
+                            <div class="char-counter" id="textCounter">0 / 5,000</div>
                         </div>
 
                         <div class="controls-row">
@@ -253,13 +252,9 @@
                                     </svg>
                                 </div>
                                 <div class="select-menu" id="textReasoningDropdown">
-                                    <div class="select-option"
-                                        onclick="selectOption('textReasoningEffort', 'low', 'Low')">
-                                        Low</div>
-                                    <div class="select-option selected"
-                                        onclick="selectOption('textReasoningEffort', 'medium', 'Medium')">Medium</div>
-                                    <div class="select-option"
-                                        onclick="selectOption('textReasoningEffort', 'high', 'High')">High</div>
+                                    <div class="select-option" data-value="low" onmousedown="selectOption('textReasoningEffort', 'low', 'Low')">Low</div>
+                                    <div class="select-option selected" data-value="medium" onmousedown="selectOption('textReasoningEffort', 'medium', 'Medium')">Medium</div>
+                                    <div class="select-option" data-value="high" onmousedown="selectOption('textReasoningEffort', 'high', 'High')">High</div>
                                 </div>
                                 <input type="hidden" id="textReasoningEffort" value="medium">
                             </div>
@@ -279,19 +274,12 @@
                                     </svg>
                                 </div>
                                 <div class="select-menu" id="textSourceDropdown">
-                                    <div class="select-option" onclick="selectOption('textNumSources', '1', '1')">1
-                                    </div>
-                                    <div class="select-option" onclick="selectOption('textNumSources', '2', '2')">2
-                                    </div>
-                                    <div class="select-option selected"
-                                        onclick="selectOption('textNumSources', '3', '3')">3
-                                    </div>
-                                    <div class="select-option" onclick="selectOption('textNumSources', '4', '4')">4
-                                    </div>
-                                    <div class="select-option" onclick="selectOption('textNumSources', '5', '5')">5
-                                    </div>
-                                    <div class="select-option" onclick="selectOption('textNumSources', '6', '6')">6
-                                    </div>
+                                    <div class="select-option" data-value="1" onmousedown="selectOption('textNumSources', '1', '1')">1</div>
+                                    <div class="select-option" data-value="2" onmousedown="selectOption('textNumSources', '2', '2')">2</div>
+                                    <div class="select-option selected" data-value="3" onmousedown="selectOption('textNumSources', '3', '3')">3</div>
+                                    <div class="select-option" data-value="4" onmousedown="selectOption('textNumSources', '4', '4')">4</div>
+                                    <div class="select-option" data-value="5" onmousedown="selectOption('textNumSources', '5', '5')">5</div>
+                                    <div class="select-option" data-value="6" onmousedown="selectOption('textNumSources', '6', '6')">6</div>
                                 </div>
                                 <input type="hidden" id="textNumSources" value="3">
                                 <input type="hidden" id="maxClaims" value="6">
@@ -304,6 +292,7 @@
                             <span class="btn-loader">
                                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                             </span>
+                            <span class="btn-ring"></span>
                         </button>
                     </div>
 
@@ -328,21 +317,33 @@
 
                     <!-- Empty state -->
                     <div class="empty-state" id="emptyState">
-                        <div class="empty-icon">
-                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                <path d="M24 4L4 14V34L24 44L44 34V14L24 4Z" stroke="rgba(212,168,83,0.3)"
-                                    stroke-width="2" fill="none" />
-                                <path d="M24 4V44" stroke="rgba(212,168,83,0.15)" stroke-width="1.5" />
-                                <path d="M4 14L44 34" stroke="rgba(212,168,83,0.1)" stroke-width="1.5" />
-                                <path d="M44 14L4 34" stroke="rgba(212,168,83,0.1)" stroke-width="1.5" />
-                                <circle cx="24" cy="24" r="5" fill="rgba(212,168,83,0.2)" />
+                        <div class="empty-icon" id="emptyCubeWrap">
+                            <div class="hex-rings">
+                                <span class="ring r1"></span>
+                                <span class="ring r2"></span>
+                                <span class="ring r3"></span>
+                            </div>
+                            <svg id="emptyCube" width="72" height="72" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#emptyLg)" stroke-width="1.5" fill="none"/>
+                                <path d="M14 2V26" stroke="url(#emptyLg)" stroke-width="1" opacity="0.45"/>
+                                <path d="M2 8L26 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25"/>
+                                <path d="M26 8L2 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25"/>
+                                <circle cx="14" cy="14" r="3" fill="url(#emptyLg)" opacity="0.9"/>
+                                <defs>
+                                    <linearGradient id="emptyLg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%"   stop-color="#d4a853"/>
+                                        <stop offset="50%"  stop-color="#e8c878"/>
+                                        <stop offset="100%" stop-color="#b8922e"/>
+                                    </linearGradient>
+                                </defs>
                             </svg>
                         </div>
-                        <p class="empty-title">No results yet</p>
+                        <p class="empty-title" id="emptyTitle">No results yet</p>
                         <p class="empty-sub" id="emptySub">Enter a claim on the left and hit <strong>Verify
                                 Claim</strong>
                             to get started.
                         </p>
+                        <p class="processing-status" id="processingStatus"></p>
                     </div>
 
                     <!-- Result area -->
@@ -386,12 +387,40 @@
                 <a href="#" class="nav-tab" data-tab="text" id="tabTextMobile">Analyze Text</a>
             </div>
 
+            <!-- Mobile processing animation -->
+            <div id="mobileHexLoader" style="display:none;">
+                <div class="mob-hex-wrap">
+                    <div class="mob-hex-rings">
+                        <span class="ring r1"></span>
+                        <span class="ring r2"></span>
+                        <span class="ring r3"></span>
+                    </div>
+                    <svg class="mob-hex-svg" width="70" height="70" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#mobHexLg)" stroke-width="1.5" fill="none"/>
+                        <path d="M14 2V26" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.45"/>
+                        <path d="M2 8L26 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25"/>
+                        <path d="M26 8L2 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25"/>
+                        <circle cx="14" cy="14" r="3" fill="url(#mobHexLg)" opacity="0.9"/>
+                        <defs>
+                            <linearGradient id="mobHexLg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#d4a853"/>
+                                <stop offset="50%" stop-color="#e8c878"/>
+                                <stop offset="100%" stop-color="#b8922e"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <p class="mob-hex-status" id="mobileProcessingStatus"></p>
+            </div>
+
             <div class="mobile-content" id="singleTabMobile">
                 <div class="mobile-input-card">
                     <textarea id="claimInputMobile" placeholder="Enter any claim to verify..." rows="4"
-                        oninput="toggleClearBtn('claimInputMobile', 'clearClaimMobile')"></textarea>
+                        maxlength="500"
+                        oninput="toggleClearBtn('claimInputMobile', 'clearClaimMobile'); updateCharCount('claimInputMobile', 'claimCounterMobile', 500)"></textarea>
                     <button class="clear-input-btn" id="clearClaimMobile"
                         onclick="clearInput('claimInputMobile')">✕</button>
+                    <div class="char-counter" id="claimCounterMobile">0 / 500</div>
 
                     <div class="mobile-controls">
                         <div class="mobile-control-item">
@@ -418,6 +447,7 @@
                     <span class="btn-loader"><span class="dot"></span><span class="dot"></span><span
                             class="dot"></span></span>
                     <span class="btn-scan"></span>
+                    <span class="btn-ring"></span>
                 </button>
 
                 <div class="mobile-examples" id="mobileExamplesSection" style="margin-top: 10px; padding: 0 20px;">
@@ -444,9 +474,11 @@
             <div class="mobile-content" id="textTabMobile" style="display:none;">
                 <div class="mobile-input-card">
                     <textarea id="textInputMobile" placeholder="Paste an article here..." rows="6"
-                        oninput="toggleClearBtn('textInputMobile', 'clearTextMobile')"></textarea>
+                        maxlength="5000"
+                        oninput="toggleClearBtn('textInputMobile', 'clearTextMobile'); updateCharCount('textInputMobile', 'textCounterMobile', 5000)"></textarea>
                     <button class="clear-input-btn" id="clearTextMobile"
                         onclick="clearInput('textInputMobile')">✕</button>
+                    <div class="char-counter" id="textCounterMobile">0 / 5,000</div>
 
                     <div class="mobile-controls">
                         <div class="mobile-control-item">
@@ -475,6 +507,7 @@
                     <span class="btn-loader"><span class="dot"></span><span class="dot"></span><span
                             class="dot"></span></span>
                     <span class="btn-scan"></span>
+                    <span class="btn-ring"></span>
                 </button>
 
                 <div class="mobile-results-container">

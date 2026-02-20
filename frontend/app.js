@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHistory();
     checkUsage();
     initSuperuser();
+    initButtonClickAnim();
 });
 
 /* ============================================================
@@ -319,17 +320,35 @@ function setProgress(pct) {
    EXAMPLE CLAIMS
    ============================================================ */
 function setExample(claim) {
+    triggerHaptic('light');
+    if (window.innerWidth <= 900) {
+        // Mobile: populate mobile input and scroll up to it
+        const mobileInput = _origGetElementById('claimInputMobile');
+        if (mobileInput) {
+            mobileInput.value = claim;
+            updateCharCount('claimInputMobile', 'claimCounterMobile', 500);
+            toggleClearBtn('claimInputMobile', 'clearClaimMobile');
+            mobileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            mobileInput.style.transition = 'border-color 0.3s';
+            mobileInput.style.borderColor = 'var(--primary)';
+            mobileInput.style.boxShadow = '0 0 0 3px rgba(212,168,83,0.25)';
+            setTimeout(() => {
+                mobileInput.style.borderColor = '';
+                mobileInput.style.boxShadow = '';
+            }, 1600);
+        }
+        return;
+    }
+    // Desktop: populate directly
     const input = $('claimInput');
     if (!input) return;
-    triggerHaptic('light');
     input.value = claim;
     input.focus();
     input.style.borderColor = 'var(--primary)';
     setTimeout(() => input.style.borderColor = '', 1200);
-
-    // Ensure single tab is active
     switchTab('single');
 }
+
 
 /* ============================================================
    FACT CHECK
@@ -353,30 +372,29 @@ async function handleFactCheck() {
         shakeInput('claimInput');
         return;
     }
+    if (claim.length > 500) {
+        shakeInput('claimInput');
+        return;
+    }
 
     const reasoningEffort = $('reasoningEffort')?.value || 'medium';
     const numSources = parseInt($('numSources')?.value || '3');
 
     triggerHaptic('medium');
     setLoading('checkBtn', true);
-    showEmptyState(false);
+    showEmptyState(true);
+    setCubeProcessing(true, 'Scouring the internet...');
     showResultsClear(false);
     toggleMobileInputs(false);
     setProgress(10);
 
-    // Show skeleton
     const resultArea = $('resultArea');
-    resultArea.innerHTML = renderSkeleton();
-
-    // Progress steps
-    const progressId = 'prog_' + Date.now();
-    resultArea.innerHTML = renderProgressCard(progressId) + resultArea.innerHTML;
+    resultArea.innerHTML = '';
     setProgress(30);
-    updateProgressStep(progressId, 0);
 
     try {
         setProgress(50);
-        updateProgressStep(progressId, 1);
+        setCubeStatus('Dissecting the evidence...');
 
         const res = await fetch(`${API_BASE}/api/fact-check`, {
             method: 'POST',
@@ -389,12 +407,14 @@ async function handleFactCheck() {
         });
 
         setProgress(80);
-        updateProgressStep(progressId, 2);
+        setCubeStatus('Rendering judgment...');
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             if (res.status === 429 || err.limit_reached) {
                 await checkUsage();
+                setCubeProcessing(false);
+                showEmptyState(false);
                 resultArea.innerHTML = renderLimitReached();
                 setProgress(null);
                 setLoading('checkBtn', false);
@@ -407,10 +427,11 @@ async function handleFactCheck() {
 
         const data = await res.json();
         setProgress(100);
-        updateProgressStep(progressId, 3);
 
         // Render result
         setTimeout(() => {
+            setCubeProcessing(false);
+            showEmptyState(false);
             resultArea.innerHTML = renderResultCard(data, claim);
             showResultsClear(true);
             addToHistory(claim, data.verdict);
@@ -428,6 +449,8 @@ async function handleFactCheck() {
         await checkUsage();
 
     } catch (err) {
+        setCubeProcessing(false);
+        showEmptyState(false);
         setProgress(null);
         resultArea.innerHTML = renderError(err.message);
         showResultsClear(true);
@@ -459,22 +482,28 @@ async function handleTextAnalysis() {
         shakeInput('textInput');
         return;
     }
+    if (text.length > 5000) {
+        shakeInput('textInput');
+        return;
+    }
 
     const maxClaims = parseInt($('maxClaims')?.value || '6');
     const numSources = parseInt($('textNumSources')?.value || '3');
     const reasoningEffort = $('textReasoningEffort')?.value || 'medium';
 
     setLoading('analyzeBtn', true);
-    showEmptyState(false);
+    showEmptyState(true);
+    setCubeProcessing(true, 'Decoding your text...');
     showResultsClear(false);
     toggleMobileInputs(false);
     setProgress(10);
 
     const textResultArea = $('textResultArea');
-    textResultArea.innerHTML = renderSkeleton();
+    textResultArea.innerHTML = '';
 
     try {
         setProgress(40);
+        setCubeStatus('Cross-referencing sources...');
 
         const res = await fetch(`${API_BASE}/api/fact-check-text`, {
             method: 'POST',
@@ -492,11 +521,14 @@ async function handleTextAnalysis() {
         });
 
         setProgress(80);
+        setCubeStatus('Rendering verdicts...');
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             if (res.status === 429 || err.limit_reached) {
                 await checkUsage();
+                setCubeProcessing(false);
+                showEmptyState(false);
                 textResultArea.innerHTML = renderLimitReached();
                 setProgress(null);
                 setLoading('analyzeBtn', false);
@@ -511,6 +543,8 @@ async function handleTextAnalysis() {
         setProgress(100);
 
         setTimeout(() => {
+            setCubeProcessing(false);
+            showEmptyState(false);
             textResultArea.innerHTML = renderTextResults(data);
             showResultsClear(true);
             setProgress(null);
@@ -519,6 +553,8 @@ async function handleTextAnalysis() {
         await checkUsage();
 
     } catch (err) {
+        setCubeProcessing(false);
+        showEmptyState(false);
         setProgress(null);
         textResultArea.innerHTML = renderError(err.message);
         showResultsClear(true);
@@ -532,47 +568,43 @@ async function handleTextAnalysis() {
    RENDER HELPERS
    ============================================================ */
 
-function renderProgressCard(id) {
-    return `
-    <div class="result-card" id="${id}">
-        <div class="progress-tracker">
-            <div class="progress-tracker-label">Progress</div>
-            <div class="progress-steps">
-                <div class="progress-step" id="${id}_s0">
-                    <div class="step-dot">1</div>
-                    <div class="step-label">Sources Found</div>
-                </div>
-                <div class="progress-step" id="${id}_s1">
-                    <div class="step-dot">2</div>
-                    <div class="step-label">Verifying</div>
-                </div>
-                <div class="progress-step" id="${id}_s2">
-                    <div class="step-dot">3</div>
-                    <div class="step-label">Generating Verdict</div>
-                </div>
-            </div>
-        </div>
-    </div>`;
-}
-
-function updateProgressStep(id, step) {
-    for (let i = 0; i < 3; i++) {
-        const el = document.getElementById(`${id}_s${i}`);
-        if (!el) continue;
-        el.classList.remove('done', 'active');
-        if (i < step) el.classList.add('done');
-        else if (i === step) el.classList.add('active');
+/* ── Cube processing animation ── */
+function setCubeProcessing(active, statusText) {
+    const emptyState = document.getElementById('emptyState');
+    const statusEl   = document.getElementById('processingStatus');
+    if (emptyState) {
+        if (active) {
+            emptyState.classList.add('is-processing');
+            if (statusEl && statusText) statusEl.textContent = statusText;
+        } else {
+            emptyState.classList.remove('is-processing');
+            if (statusEl) statusEl.textContent = '';
+        }
+    }
+    // Mobile hex loader
+    const mobLoader  = document.getElementById('mobileHexLoader');
+    const mobStatus  = document.getElementById('mobileProcessingStatus');
+    if (mobLoader) {
+        mobLoader.style.display = active ? 'flex' : 'none';
+        if (mobStatus) mobStatus.textContent = statusText || '';
     }
 }
 
-function renderSkeleton() {
-    return `
-    <div class="skeleton-card">
-        <div class="skeleton-line badge"></div>
-        <div class="skeleton-line" style="margin-top:14px;"></div>
-        <div class="skeleton-line medium"></div>
-        <div class="skeleton-line short"></div>
-    </div>`;
+function setCubeStatus(text) {
+    const statusEl = document.getElementById('processingStatus');
+    if (statusEl) {
+        statusEl.style.animation = 'none';
+        void statusEl.offsetWidth;
+        statusEl.style.animation = '';
+        statusEl.textContent = text;
+    }
+    const mobStatus = document.getElementById('mobileProcessingStatus');
+    if (mobStatus) {
+        mobStatus.style.animation = 'none';
+        void mobStatus.offsetWidth;
+        mobStatus.style.animation = '';
+        mobStatus.textContent = text;
+    }
 }
 
 function formatReasoning(text) {
@@ -712,8 +744,26 @@ function setLoading(btnId, loading) {
     const text = btn.querySelector('.btn-text');
     const loader = btn.querySelector('.btn-loader');
     btn.disabled = loading;
+    if (loading) {
+        btn.classList.add('is-loading');
+    } else {
+        btn.classList.remove('is-loading');
+    }
     if (text) text.style.display = loading ? 'none' : '';
     if (loader) loader.style.display = loading ? 'flex' : 'none';
+}
+
+/* ── Button click spring + ring-burst animation ── */
+function initButtonClickAnim() {
+    document.addEventListener('mousedown', e => {
+        const btn = e.target.closest('.btn-verify');
+        if (!btn || btn.disabled) return;
+        // Remove and re-add to restart animation cleanly
+        btn.classList.remove('btn-pressed');
+        void btn.offsetWidth;
+        btn.classList.add('btn-pressed');
+        btn.addEventListener('animationend', () => btn.classList.remove('btn-pressed'), { once: true });
+    });
 }
 
 function showEmptyState(show) {
@@ -732,6 +782,7 @@ function clearResults() {
     const ta = $('textResultArea');
     if (ra) ra.innerHTML = '';
     if (ta) ta.innerHTML = '';
+    setCubeProcessing(false);
     showEmptyState(true);
     showResultsClear(false);
     toggleMobileInputs(true);
@@ -907,12 +958,17 @@ function selectOption(inputId, value, displayInfo) {
     const menu = input.previousElementSibling;
     const display = menu ? menu.previousElementSibling : null;
 
-    if (display) display.textContent = displayInfo;
+    // Only update the <span> inside .select-display — do NOT replace textContent
+    // which would wipe the dropdown-arrow SVG and break subsequent interactions.
+    if (display) {
+        const span = display.querySelector('span');
+        if (span) span.textContent = displayInfo;
+    }
 
     if (menu) {
         Array.from(menu.children).forEach(child => {
             child.classList.remove('selected');
-            if (child.textContent.trim() === displayInfo) {
+            if (child.dataset.value === value) {
                 child.classList.add('selected');
             }
         });
@@ -923,7 +979,8 @@ function selectOption(inputId, value, displayInfo) {
 }
 
 // Close dropdowns when clicking outside
-window.addEventListener('click', (e) => {
+// Use mousedown so it fires before any blur events but still respects option clicks.
+window.addEventListener('mousedown', (e) => {
     if (!e.target.closest('.control-pill')) {
         document.querySelectorAll('.select-menu').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.control-pill').forEach(el => el.classList.remove('active'));
@@ -960,6 +1017,24 @@ function toggleClearBtn(inputId, btnId) {
         btn.classList.add('visible');
     } else {
         btn.classList.remove('visible');
+    }
+}
+
+/* ── Character counter ── */
+function updateCharCount(inputId, counterId, limit) {
+    const input = document.getElementById(inputId);
+    const counter = document.getElementById(counterId);
+    if (!input || !counter) return;
+
+    const len = input.value.length;
+    const limitStr = limit >= 1000 ? (limit / 1000).toFixed(0) + ',000' : String(limit);
+    counter.textContent = `${len.toLocaleString()} / ${limitStr}`;
+
+    counter.classList.remove('warn', 'error');
+    if (len >= limit) {
+        counter.classList.add('error');
+    } else if (len >= limit * 0.85) {
+        counter.classList.add('warn');
     }
 }
 
