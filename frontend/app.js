@@ -231,9 +231,23 @@ async function checkHealth() {
    ============================================================ */
 async function checkUsage() {
     try {
-        const res = await fetch(`${API_BASE}/api/usage`);
+        const localUsed = localStorage.getItem('fc_used') || '0';
+        const res = await fetch(`${API_BASE}/api/usage`, {
+            headers: { 'X-Local-Used': localUsed }
+        });
         if (!res.ok) return;
-        usageData = await res.json();
+        const serverUsage = await res.json();
+
+        let parsedLocal = parseInt(localUsed);
+        if (serverUsage.used > parsedLocal) {
+            localStorage.setItem('fc_used', serverUsage.used.toString());
+        } else if (parsedLocal > serverUsage.used) {
+            serverUsage.used = parsedLocal;
+            serverUsage.remaining = Math.max(0, serverUsage.max - parsedLocal);
+            serverUsage.limit_reached = serverUsage.used >= serverUsage.max;
+        }
+
+        usageData = serverUsage;
         renderUsageBadge();
     } catch { /* silent */ }
 }
@@ -251,7 +265,7 @@ function renderUsageBadge() {
         return;
     }
 
-    const { used = 0, max = 2, remaining = 2 } = usageData;
+    const { used = 0, max = 5, remaining = 5 } = usageData;
     const pct = used / max;
     const color = pct >= 1 ? '#f87171' : pct >= 0.5 ? '#fbbf24' : '#4ade80';
 
@@ -325,8 +339,10 @@ async function handleFactCheck() {
     if (!isSuperuser && usageData && usageData.remaining === 0) {
         const resultArea = $('resultArea');
         showEmptyState(false);
-        showResultsClear(false);
+        showResultsClear(true);
+        toggleMobileInputs(false);
         resultArea.innerHTML = renderLimitReached();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
     }
 
@@ -364,6 +380,7 @@ async function handleFactCheck() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Local-Used': localStorage.getItem('fc_used') || '0',
                 ...(isSuperuser ? { 'X-Superuser': 'cerebras2024' } : {})
             },
             body: JSON.stringify({ claim, reasoning_effort: reasoningEffort, num_sources: numSources })
@@ -380,6 +397,7 @@ async function handleFactCheck() {
                 setProgress(null);
                 setLoading('checkBtn', false);
                 isChecking = false;
+                showResultsClear(true);
                 return;
             }
             throw new Error(err.error || `Server error ${res.status}`);
@@ -423,6 +441,17 @@ async function handleFactCheck() {
 async function handleTextAnalysis() {
     if (isChecking) return;
 
+    // Pre-flight: check if limit already reached
+    if (!isSuperuser && usageData && usageData.remaining === 0) {
+        const textResultArea = $('textResultArea');
+        showEmptyState(false);
+        showResultsClear(true);
+        toggleMobileInputs(false);
+        textResultArea.innerHTML = renderLimitReached();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+
     const text = $('textInput')?.value?.trim();
     if (!text) {
         shakeInput('textInput');
@@ -449,6 +478,7 @@ async function handleTextAnalysis() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Local-Used': localStorage.getItem('fc_used') || '0',
                 ...(isSuperuser ? { 'X-Superuser': 'cerebras2024' } : {})
             },
             body: JSON.stringify({
@@ -463,6 +493,15 @@ async function handleTextAnalysis() {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
+            if (res.status === 429 || err.limit_reached) {
+                await checkUsage();
+                textResultArea.innerHTML = renderLimitReached();
+                setProgress(null);
+                setLoading('analyzeBtn', false);
+                isChecking = false;
+                showResultsClear(true);
+                return;
+            }
             throw new Error(err.error || `Server error ${res.status}`);
         }
 
@@ -632,7 +671,7 @@ function renderLimitReached() {
     <div class="limit-card">
         <div class="limit-icon">🔒</div>
         <h3 class="limit-title">Free Limit Reached</h3>
-        <p class="limit-msg">You've used all <strong>2 free fact-checks</strong> for this session. Thank you for trying Cerebras FactCheck!</p>
+        <p class="limit-msg">You've used all <strong>5 free fact-checks</strong> for this session. Thank you for trying Cerebras FactCheck!</p>
     </div>`;
 }
 

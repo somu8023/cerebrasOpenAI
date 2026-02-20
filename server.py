@@ -35,7 +35,7 @@ parallel_client = None
 model = None
 
 # ---- Soft Launch: Server-Side Rate Limiting ----
-MAX_FREE_CHECKS = int(os.getenv('MAX_FREE_CHECKS', 2))
+MAX_FREE_CHECKS = int(os.getenv('MAX_FREE_CHECKS', 5))
 SUPERUSER_SECRET = os.getenv('SUPERUSER_SECRET', 'cerebras2024')
 usage_by_ip: dict[str, int] = {}  # IP -> check count
 
@@ -51,6 +51,15 @@ def check_rate_limit():
     
     ip = request.remote_addr or 'unknown'
     current_usage = usage_by_ip.get(ip, 0)
+    
+    # Sync with client's local tracker to survive Vercel cold starts
+    try:
+        local_used = int(request.headers.get('X-Local-Used', '0'))
+        if local_used > current_usage:
+            current_usage = local_used
+            usage_by_ip[ip] = current_usage
+    except ValueError:
+        pass
     
     if current_usage >= MAX_FREE_CHECKS:
         resp = make_response(jsonify({
@@ -210,6 +219,16 @@ def get_usage():
     
     ip = request.remote_addr or 'unknown'
     used = usage_by_ip.get(ip, 0)
+    
+    # Sync with client's local tracker
+    try:
+        local_used = int(request.headers.get('X-Local-Used', '0'))
+        if local_used > used:
+            used = local_used
+            usage_by_ip[ip] = used
+    except ValueError:
+        pass
+
     return jsonify({
         "used": used,
         "max": MAX_FREE_CHECKS,
