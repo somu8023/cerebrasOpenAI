@@ -2573,3 +2573,227 @@ textarea::placeholder {
         text-align: center;
     }
 }
+
+/* ============================================
+   NEW MOBILE ONLY LAYOUT (APPROACH 1)
+   ============================================ */
+.mobile-only-layout {
+    display: none;
+}
+
+@media (max-width: 900px) {
+
+    textarea,
+    input,
+    select {
+        font-size: 16px !important;
+    }
+
+    .desktop-only-layout {
+        display: none !important;
+    }
+
+    .mobile-only-layout {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-height: 100vh;
+        background: radial-gradient(circle at 50% 150px, rgba(212, 168, 83, 0.08), transparent 60%),
+            radial-gradient(circle at 80% 80%, rgba(212, 168, 83, 0.05), transparent 50%),
+            var(--bg-app);
+        /* Subtle gold glowing spheres behind the glass UI */
+    }
+
+    .mobile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
+        background: rgba(14, 16, 22, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .mobile-tabs {
+        display: flex;
+        gap: 10px;
+        padding: 12px 20px;
+        background: rgba(10, 12, 18, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: sticky;
+        top: 61px;
+        /* Height of the header to make them stack */
+        z-index: 99;
+    }
+
+    .mobile-tabs .nav-tab {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        border-radius: var(--r-md);
+        font-weight: 600;
+        border: none;
+    }
+
+    .mobile-tabs .nav-tab.active {
+        background: rgba(212, 168, 83, 0.15);
+        color: var(--primary);
+    }
+
+    .mobile-tabs .nav-tab::after {
+        display: none;
+    }
+
+    .mobile-input-card {
+        background: rgba(14, 16, 22, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        border-radius: var(--r-lg);
+        margin: 20px;
+        padding: 16px;
+        position: relative;
+    }
+
+    .mobile-input-card textarea {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-light);
+        color: var(--text-primary);
+        border-radius: var(--r-sm);
+        padding: 12px;
+        outline: none;
+        min-height: 120px;
+        font-family: inherit;
+    }
+
+    .mobile-controls {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .mobile-control-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .mobile-control-item label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+    }
+
+    .native-select {
+        background: rgba(20, 23, 32, 0.9);
+        border: 1px solid var(--border-light);
+        color: var(--primary);
+        padding: 8px 12px;
+        border-radius: var(--r-sm);
+        font-weight: 600;
+        width: 100%;
+        appearance: auto;
+        outline: none;
+    }
+
+    .mobile-btn-verify {
+        margin: 0 20px 20px;
+        width: calc(100% - 40px);
+    }
+
+    .mobile-results-container {
+        padding: 0 20px 40px;
+    }
+
+    .mobile-clear-results-wrap {
+        padding: 5px 20px 20px;
+        display: flex;
+        justify-content: center;
+        position: sticky;
+        bottom: 0;
+        background: linear-gradient(to top, var(--bg-app) 70%, transparent);
+        z-index: 50;
+    }
+
+    .mobile-btn-clear {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(212, 168, 83, 0.15), rgba(212, 168, 83, 0.05));
+        border: 1px solid rgba(212, 168, 83, 0.3);
+        color: var(--primary);
+        font-family: inherit;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.85rem;
+        padding: 16px 24px;
+        border-radius: 9999px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px);
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        margin-top: 10px;
+    }
+
+    .mobile-btn-clear:active {
+        transform: scale(0.96) translateY(2px);
+        background: linear-gradient(135deg, rgba(212, 168, 83, 0.25), rgba(212, 168, 83, 0.1));
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .mobile-usage-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .mobile-empty {
+        padding-top: 30px;
+        padding-bottom: 20px;
+    }
+
+    .mobile-examples {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 30px;
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    .mobile-example-chip {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(14, 16, 22, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 16px 18px;
+        border-radius: var(--r-md);
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: left;
+        cursor: pointer;
+        transition: all var(--t-fast);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .mobile-example-chip:active {
+        background: rgba(212, 168, 83, 0.1);
+        border-color: rgba(212, 168, 83, 0.4);
+        transform: scale(0.98);
+    }
+}

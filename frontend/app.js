@@ -13,7 +13,15 @@ let checkHistory = JSON.parse(localStorage.getItem('fc_history') || '[]');
 let usageData = null;
 let isSuperuser = false;
 
-/* ── DOM refs ── */
+/* ── DOM refs & Approach 1 Intercept ── */
+const _origGetElementById = document.getElementById.bind(document);
+document.getElementById = function (id) {
+    if (window.innerWidth <= 900) {
+        const mob = _origGetElementById(id + 'Mobile');
+        if (mob) return mob;
+    }
+    return _origGetElementById(id);
+};
 const $ = id => document.getElementById(id);
 
 /* ============================================================
@@ -155,6 +163,7 @@ function initTabs() {
     document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', e => {
             e.preventDefault();
+            triggerHaptic('light');
             switchTab(tab.dataset.tab);
         });
     });
@@ -296,6 +305,7 @@ function setProgress(pct) {
 function setExample(claim) {
     const input = $('claimInput');
     if (!input) return;
+    triggerHaptic('light');
     input.value = claim;
     input.focus();
     input.style.borderColor = 'var(--primary)';
@@ -329,9 +339,11 @@ async function handleFactCheck() {
     const reasoningEffort = $('reasoningEffort')?.value || 'medium';
     const numSources = parseInt($('numSources')?.value || '3');
 
+    triggerHaptic('medium');
     setLoading('checkBtn', true);
     showEmptyState(false);
     showResultsClear(false);
+    toggleMobileInputs(false);
     setProgress(10);
 
     // Show skeleton
@@ -383,6 +395,14 @@ async function handleFactCheck() {
             showResultsClear(true);
             addToHistory(claim, data.verdict);
             setProgress(null);
+
+            if (data.verdict === 'TRUE') {
+                triggerHaptic('success');
+            } else if (data.verdict === 'FALSE') {
+                triggerHaptic('heavy');
+            } else {
+                triggerHaptic('medium');
+            }
         }, 300);
 
         await checkUsage();
@@ -390,6 +410,7 @@ async function handleFactCheck() {
     } catch (err) {
         setProgress(null);
         resultArea.innerHTML = renderError(err.message);
+        showResultsClear(true);
     } finally {
         setLoading('checkBtn', false);
         isChecking = false;
@@ -415,6 +436,7 @@ async function handleTextAnalysis() {
     setLoading('analyzeBtn', true);
     showEmptyState(false);
     showResultsClear(false);
+    toggleMobileInputs(false);
     setProgress(10);
 
     const textResultArea = $('textResultArea');
@@ -458,6 +480,7 @@ async function handleTextAnalysis() {
     } catch (err) {
         setProgress(null);
         textResultArea.innerHTML = renderError(err.message);
+        showResultsClear(true);
     } finally {
         setLoading('analyzeBtn', false);
         isChecking = false;
@@ -639,15 +662,35 @@ function showResultsClear(show) {
 }
 
 function clearResults() {
+    triggerHaptic('light');
     const ra = $('resultArea');
     const ta = $('textResultArea');
     if (ra) ra.innerHTML = '';
     if (ta) ta.innerHTML = '';
     showEmptyState(true);
     showResultsClear(false);
+    toggleMobileInputs(true);
+}
+
+function toggleMobileInputs(show) {
+    if (window.innerWidth > 900) return;
+
+    const singleCard = document.querySelector('#singleTabMobile .mobile-input-card');
+    const singleBtn = _origGetElementById('checkBtnMobile');
+    const singleExamples = _origGetElementById('mobileExamplesSection');
+
+    if (singleCard) singleCard.style.display = show ? '' : 'none';
+    if (singleBtn) singleBtn.style.display = show ? '' : 'none';
+    if (singleExamples) singleExamples.style.display = show ? '' : 'none';
+
+    const textCard = document.querySelector('#textTabMobile .mobile-input-card');
+    const textBtn = _origGetElementById('analyzeBtnMobile');
+    if (textCard) textCard.style.display = show ? '' : 'none';
+    if (textBtn) textBtn.style.display = show ? '' : 'none';
 }
 
 function shakeInput(id) {
+    triggerHaptic('error');
     const el = $(id);
     if (!el) return;
     el.style.animation = 'none';
@@ -689,6 +732,31 @@ function showToast(msg) {
         t.style.transform = 'translateX(-50%) translateY(10px)';
         setTimeout(() => t.remove(), 300);
     }, 2500);
+}
+
+/* ============================================================
+   HAPTICS
+   ============================================================ */
+function triggerHaptic(type = 'light') {
+    if (!navigator.vibrate) return;
+
+    switch (type) {
+        case 'light':
+            navigator.vibrate(10);
+            break;
+        case 'medium':
+            navigator.vibrate(25);
+            break;
+        case 'heavy':
+            navigator.vibrate(50);
+            break;
+        case 'success':
+            navigator.vibrate([15, 60, 20]); // Double tap
+            break;
+        case 'error':
+            navigator.vibrate([30, 40, 30, 40, 40]); // Stutter
+            break;
+    }
 }
 
 /* ============================================================
