@@ -362,7 +362,6 @@ function setExample(claim) {
         input.style.borderColor = '';
         input.style.boxShadow = '';
     }, 1600);
-    showToast('Claim loaded — press Verify to re-check');
 }
 
 
