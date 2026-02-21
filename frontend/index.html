@@ -549,19 +549,33 @@
     <div id="helpModal" class="help-modal-overlay" onclick="closeHelpModal(event)">
         <div class="help-modal">
             <button class="help-modal-close" onclick="closeHelpModal()">&#x2715;</button>
-            <h3>How to get the best results</h3>
-            <p class="help-modal-tip">&#x1F4A1; Start small &mdash; <strong>Low reasoning, 2&ndash;3 sources</strong> is fast and handles most facts well. Hit <strong>Uncertain</strong>? That&rsquo;s your cue to escalate.</p>
+            <div class="help-modal-header">
+                <span class="help-modal-icon">&#x2728;</span>
+                <h3>How to get the best results</h3>
+            </div>
+            <p class="help-modal-tip">Start small &mdash; <strong>Low reasoning, 2&ndash;3 sources</strong> is fast and handles most facts well. Hit <strong>Uncertain</strong>? That&rsquo;s your cue to escalate.</p>
             <div class="help-tiers">
                 <div class="help-tier green">
-                    <div class="help-tier-label">&#x1F7E2; Low &nbsp;+&nbsp; 2&ndash;3 sources</div>
+                    <div class="help-tier-header">
+                        <span class="tier-dot"></span>
+                        <span class="help-tier-label">Low &nbsp;+&nbsp; 2&ndash;3 sources</span>
+                    </div>
                     <div class="help-tier-desc">Fastest. Best for clear-cut, widely reported facts.</div>
                 </div>
+                <div class="help-tier-flow">escalate if Uncertain &darr;</div>
                 <div class="help-tier yellow">
-                    <div class="help-tier-label">&#x1F7E1; Medium &nbsp;+&nbsp; 4&ndash;5 sources</div>
+                    <div class="help-tier-header">
+                        <span class="tier-dot"></span>
+                        <span class="help-tier-label">Medium &nbsp;+&nbsp; 4&ndash;5 sources</span>
+                    </div>
                     <div class="help-tier-desc">Balanced. Better for statistics, rankings, or recent events.</div>
                 </div>
+                <div class="help-tier-flow">escalate further &darr;</div>
                 <div class="help-tier red">
-                    <div class="help-tier-label">&#x1F534; High &nbsp;+&nbsp; 6 sources</div>
+                    <div class="help-tier-header">
+                        <span class="tier-dot"></span>
+                        <span class="help-tier-label">High &nbsp;+&nbsp; 6 sources</span>
+                    </div>
                     <div class="help-tier-desc">Deepest analysis. Use when verdict keeps returning Uncertain.</div>
                 </div>
             </div>
