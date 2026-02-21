@@ -192,6 +192,13 @@ function switchTab(name) {
     clearResults();
 }
 
+// Silent variant: switches the active tab UI without wiping the results panel
+function switchTabSilent(name) {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    $('singleTab').style.display = name === 'single' ? '' : 'none';
+    $('textTab').style.display = name === 'text' ? '' : 'none';
+}
+
 /* ============================================================
    TEXTAREA ENTER KEY
    ============================================================ */
@@ -339,10 +346,10 @@ function setExample(claim) {
         }
         return;
     }
-    // Desktop: populate directly
+    // Desktop: populate directly without clearing the results panel
     const input = $('claimInput');
     if (!input) return;
-    switchTab('single');
+    switchTabSilent('single');
     input.value = claim;
     updateCharCount('claimInput', 'claimCounter', 500);
     toggleClearBtn('claimInput', 'clearClaim');
@@ -355,6 +362,7 @@ function setExample(claim) {
         input.style.borderColor = '';
         input.style.boxShadow = '';
     }, 1600);
+    showToast('Claim loaded — press Verify to re-check');
 }
 
 
@@ -913,12 +921,19 @@ function loadHistory() {
         const vClass = h.verdict === 'true' ? 'true' : h.verdict === 'false' ? 'false' : 'uncertain';
         const timeAgo = getTimeAgo(h.time);
         return `
-        <div class="history-item" onclick="setExample(${JSON.stringify(h.claim)})">
+        <div class="history-item" data-claim="${escHtml(h.claim)}">
             <div class="history-verdict ${vClass}"></div>
             <div class="history-claim">${escHtml(h.claim)}</div>
             <div class="history-time">${timeAgo}</div>
+            <div class="history-load-icon" title="Load into editor">↩</div>
         </div>`;
     }).join('');
+
+    // Delegated click — safe against quotes/special chars in claim text
+    list.onclick = e => {
+        const item = e.target.closest('.history-item');
+        if (item && item.dataset.claim) setExample(item.dataset.claim);
+    };
 }
 
 function clearHistory() {

@@ -1205,6 +1205,21 @@ textarea::placeholder {
     transform: translateX(3px);
 }
 
+.history-load-icon {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+    user-select: none;
+}
+
+.history-item:hover .history-load-icon {
+    opacity: 1;
+    color: var(--primary);
+}
+
 .history-verdict {
     width: 7px;
     height: 7px;
