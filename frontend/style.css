@@ -3165,3 +3165,150 @@ textarea::placeholder {
     background: var(--border);
     border-radius: 2px;
 }
+
+/* ============================================
+   HELP BUTTON & HOW-TO MODAL
+   ============================================ */
+.input-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.help-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(212, 168, 83, 0.45);
+    background: rgba(212, 168, 83, 0.07);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+    line-height: 1;
+}
+
+.help-btn:hover {
+    background: rgba(212, 168, 83, 0.18);
+    border-color: var(--primary);
+}
+
+.help-btn-mobile {
+    margin-left: 8px;
+}
+
+/* Modal overlay */
+.help-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.help-modal-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.help-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 24px 22px;
+    max-width: 400px;
+    width: 100%;
+    position: relative;
+    animation: helpModalIn 0.22s ease;
+}
+
+@keyframes helpModalIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.help-modal h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.help-modal-tip {
+    font-size: 0.81rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: rgba(212, 168, 83, 0.06);
+    border-left: 3px solid var(--primary);
+    border-radius: 4px;
+}
+
+.help-tiers {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 16px;
+}
+
+.help-tier {
+    padding: 11px 13px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+
+.help-tier.green  { background: #1c1c1c; border-color: rgba(74, 222, 128, 0.0); border-left: 3px solid #4ade80; }
+.help-tier.yellow { background: #1c1c1c; border-color: rgba(212, 168, 83, 0.0); border-left: 3px solid var(--primary); }
+.help-tier.red    { background: #1c1c1c; border-color: rgba(239, 68, 68, 0.0);  border-left: 3px solid #ef4444; }
+
+.help-tier-label {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.help-tier-desc {
+    font-size: 0.77rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.help-modal-footer {
+    font-size: 0.73rem;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin: 0;
+}
+
+.help-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 4px 7px;
+    border-radius: 4px;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.help-modal-close:hover { color: var(--text-primary); }

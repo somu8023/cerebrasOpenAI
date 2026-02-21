@@ -101,11 +101,14 @@
                         </div>
 
                         <div class="input-header">
-                            <h2 class="input-title">
-                                <span class="title-word">Verify</span>
-                                <span class="title-word accent">a Claim</span>
-                                <span class="title-cursor"></span>
-                            </h2>
+                            <div class="input-header-row">
+                                <h2 class="input-title">
+                                    <span class="title-word">Verify</span>
+                                    <span class="title-word accent">a Claim</span>
+                                    <span class="title-cursor"></span>
+                                </h2>
+                                <button class="help-btn" onclick="openHelpModal()" title="How to use">?</button>
+                            </div>
                             <p class="input-subtitle">Enter any claim to get an AI-powered verdict backed by
                                 authoritative
                                 sources.
@@ -381,6 +384,7 @@
                             class="brand-highlight">FactCheck</span></div>
                 </a>
                 <div id="usageBadgeMobile" class="mobile-usage-badge"></div>
+                <button class="help-btn help-btn-mobile" onclick="openHelpModal()" title="How to use">?</button>
             </div>
 
             <div class="mobile-tabs nav-center">
@@ -436,8 +440,11 @@
                             <label>Sources</label>
                             <select id="numSourcesMobile" class="native-select">
                                 <option value="1">1</option>
+                                <option value="2">2</option>
                                 <option value="3" selected>3</option>
+                                <option value="4">4</option>
                                 <option value="5">5</option>
+                                <option value="6">6</option>
                             </select>
                         </div>
                     </div>
@@ -494,8 +501,11 @@
                             <label>Sources</label>
                             <select id="textNumSourcesMobile" class="native-select">
                                 <option value="1">1</option>
+                                <option value="2">2</option>
                                 <option value="3" selected>3</option>
+                                <option value="4">4</option>
                                 <option value="5">5</option>
+                                <option value="6">6</option>
                             </select>
                         </div>
                     </div>
@@ -532,6 +542,30 @@
         </div>
 
     </div><!-- /app-shell -->
+
+    <!-- How to use modal -->
+    <div id="helpModal" class="help-modal-overlay" onclick="closeHelpModal(event)">
+        <div class="help-modal">
+            <button class="help-modal-close" onclick="closeHelpModal()">&#x2715;</button>
+            <h3>How to get the best results</h3>
+            <p class="help-modal-tip">&#x1F4A1; Start small &mdash; <strong>Low reasoning, 2&ndash;3 sources</strong> is fast and handles most facts well. Hit <strong>Uncertain</strong>? That&rsquo;s your cue to escalate.</p>
+            <div class="help-tiers">
+                <div class="help-tier green">
+                    <div class="help-tier-label">&#x1F7E2; Low &nbsp;+&nbsp; 2&ndash;3 sources</div>
+                    <div class="help-tier-desc">Fastest. Best for clear-cut, widely reported facts.</div>
+                </div>
+                <div class="help-tier yellow">
+                    <div class="help-tier-label">&#x1F7E1; Medium &nbsp;+&nbsp; 4&ndash;5 sources</div>
+                    <div class="help-tier-desc">Balanced. Better for statistics, rankings, or recent events.</div>
+                </div>
+                <div class="help-tier red">
+                    <div class="help-tier-label">&#x1F534; High &nbsp;+&nbsp; 6 sources</div>
+                    <div class="help-tier-desc">Deepest analysis. Use when verdict keeps returning Uncertain.</div>
+                </div>
+            </div>
+            <p class="help-modal-footer">Higher reasoning uses more tokens and takes longer to respond.</p>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

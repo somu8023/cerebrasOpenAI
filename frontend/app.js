@@ -1125,3 +1125,22 @@ handleFactCheck = async function () {
     // Call original function
     await originalHandleFactCheck.apply(this, arguments);
 };
+
+/* ============================================================
+   HELP MODAL
+   ============================================================ */
+function openHelpModal() {
+    document.getElementById('helpModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeHelpModal(e) {
+    if (!e || e.target === document.getElementById('helpModal')) {
+        document.getElementById('helpModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeHelpModal();
+});
