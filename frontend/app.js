@@ -12,6 +12,7 @@ let isChecking = false;
 let checkHistory = JSON.parse(localStorage.getItem('fc_history') || '[]');
 let usageData = null;
 let isSuperuser = false;
+let countdownInterval = null;
 
 /* ── DOM refs & Approach 1 Intercept ── */
 const _origGetElementById = document.getElementById.bind(document);
@@ -247,7 +248,11 @@ async function checkUsage() {
         const serverUsage = await res.json();
 
         let parsedLocal = parseInt(localUsed);
-        if (serverUsage.used > parsedLocal) {
+        // If server shows full quota and used=0, UTC day rolled over — trust server
+        const serverReset = serverUsage.used === 0 && serverUsage.remaining === serverUsage.max;
+        if (serverReset) {
+            localStorage.setItem('fc_used', '0');
+        } else if (serverUsage.used > parsedLocal) {
             localStorage.setItem('fc_used', serverUsage.used.toString());
         } else if (parsedLocal > serverUsage.used) {
             serverUsage.used = parsedLocal;
@@ -282,13 +287,99 @@ function renderUsageBadge() {
     const pct = used / max;
     const color = pct >= 1 ? '#f87171' : pct >= 0.5 ? '#fbbf24' : '#4ade80';
 
-    badges.forEach(b => {
-        b.style.cssText = `background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);color:${color};padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;`;
-        b.innerHTML = `${remaining} check${remaining === 1 ? '' : 's'} left`;
-    });
+    if (remaining === 0) {
+        const rt = resetTimeLocal();
+        badges.forEach(b => {
+            b.style.cssText = `background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);color:inherit;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;`;
+            b.innerHTML = `<span style="color:#f87171">0 left</span><span style="color:rgba(255,255,255,0.3)"> · </span><span style="color:#fbbf24">\u21bb ${rt}</span>`;
+        });
+        startCountdown();
+    } else {
+        stopCountdown();
+        badges.forEach(b => {
+            b.style.cssText = `background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);color:${color};padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;`;
+            b.innerHTML = `${remaining} check${remaining === 1 ? '' : 's'} left`;
+        });
+    }
 
     const btn = $('checkBtn');
     if (btn) btn.disabled = false;
+}
+
+/* ============================================================
+   UTC MIDNIGHT COUNTDOWN
+   ============================================================ */
+function msUntilUTCMidnight() {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
+    ));
+    return next - now;
+}
+
+function formatCountdown(ms) {
+    if (ms <= 0) return '0m';
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function resetTimeLocal() {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
+    ));
+    return next.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    const rt = resetTimeLocal(); // static for this UTC day
+    // Show below-button countdown elements
+    ['resetCountdownDesktop', 'resetCountdownMobile'].forEach(id => {
+        const el = _origGetElementById(id);
+        if (el) el.classList.remove('hidden');
+    });
+    function tick() {
+        const ms = msUntilUTCMidnight();
+        if (ms <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            // New UTC day — reset local state and restore UI
+            usageData = { used: 0, max: usageData?.max || 5, remaining: usageData?.max || 5, limit_reached: false };
+            localStorage.setItem('fc_used', '0');
+            ['resetCountdownDesktop', 'resetCountdownMobile'].forEach(id => {
+                const el = _origGetElementById(id);
+                if (el) { el.classList.add('hidden'); el.textContent = ''; }
+            });
+            renderUsageBadge();
+            return;
+        }
+        const cd = formatCountdown(ms);
+        // Option D: below-button ticking line
+        const msg = `Come back at ${rt} \u00b7 in ${cd}`;
+        ['resetCountdownDesktop', 'resetCountdownMobile'].forEach(id => {
+            const el = _origGetElementById(id);
+            if (el) el.textContent = msg;
+        });
+        // Update limit card countdown text if visible
+        const lc = _origGetElementById('limitCountdown');
+        if (lc) lc.textContent = `Resets at ${rt} (in ${cd})`;
+    }
+    tick();
+    countdownInterval = setInterval(tick, 1000);
+}
+
+function stopCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    ['resetCountdownDesktop', 'resetCountdownMobile'].forEach(id => {
+        const el = _origGetElementById(id);
+        if (el) { el.classList.add('hidden'); el.textContent = ''; }
+    });
 }
 
 /* ============================================================
@@ -749,11 +840,14 @@ function renderError(msg) {
 }
 
 function renderLimitReached() {
+    const rt = resetTimeLocal();
+    const cd = formatCountdown(msUntilUTCMidnight());
     return `
     <div class="limit-card">
         <div class="limit-icon">🔒</div>
-        <h3 class="limit-title">Free Limit Reached</h3>
-        <p class="limit-msg">You've used all <strong>5 free fact-checks</strong> for this session. Thank you for trying Cerebras FactCheck!</p>
+        <h3 class="limit-title">Daily Limit Reached</h3>
+        <p class="limit-msg">You've used all <strong>5 free fact-checks</strong> for today. Come back when the quota resets!</p>
+        <p class="limit-countdown" id="limitCountdown">Resets at ${rt} (in ${cd})</p>
     </div>`;
 }
 

@@ -37,30 +37,69 @@ model = None
 # ---- Soft Launch: Server-Side Rate Limiting ----
 MAX_FREE_CHECKS = int(os.getenv('MAX_FREE_CHECKS', 5))
 SUPERUSER_SECRET = os.getenv('SUPERUSER_SECRET', 'cerebras2024')
-usage_by_ip: dict[str, int] = {}  # IP -> check count
+usage_by_ip: dict[str, dict] = {}  # IP -> {"count": int, "date": "YYYY-MM-DD"}
+_request_count = 0  # for periodic stale-IP cleanup
+
+
+def _today_utc() -> str:
+    return datetime.utcnow().strftime("%Y-%m-%d")
+
+
+def _next_midnight_utc() -> str:
+    """ISO 8601 string for the next UTC midnight."""
+    from datetime import timedelta
+    now = datetime.utcnow()
+    next_mid = datetime(now.year, now.month, now.day) + timedelta(days=1)
+    return next_mid.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _cleanup_stale_ips():
+    today = _today_utc()
+    stale = [ip for ip, rec in usage_by_ip.items() if rec.get("date", "") < today]
+    for ip in stale:
+        del usage_by_ip[ip]
+    if stale:
+        print(f"[Rate Limit] Cleaned up {len(stale)} stale IP records")
+
 
 def check_rate_limit():
     """Check if the current request is within rate limits.
     Returns (allowed: bool, response_or_none).
     When allowed=False, response is a ready-to-return Flask response with status 429.
     """
+    global _request_count
     from flask import make_response
     # Superuser bypass via secret header
     if request.headers.get('X-Superuser') == SUPERUSER_SECRET:
         return True, None
-    
+
     ip = request.remote_addr or 'unknown'
-    current_usage = usage_by_ip.get(ip, 0)
-    
-    # Sync with client's local tracker to survive Vercel cold starts
+    today = _today_utc()
+
+    # Periodic cleanup every 100 requests
+    _request_count += 1
+    if _request_count % 100 == 0:
+        _cleanup_stale_ips()
+
+    # Get or initialize record; reset automatically on new UTC day
+    record = usage_by_ip.get(ip)
+    if record is None or record.get("date") != today:
+        record = {"count": 0, "date": today}
+        usage_by_ip[ip] = record
+
+    current_usage = record["count"]
+
+    # Sync with client's local tracker (only meaningful on same UTC day)
     try:
         local_used = int(request.headers.get('X-Local-Used', '0'))
         if local_used > current_usage:
             current_usage = local_used
-            usage_by_ip[ip] = current_usage
+            record["count"] = current_usage
     except ValueError:
         pass
-    
+
+    reset_at_utc = _next_midnight_utc()
+
     if current_usage >= MAX_FREE_CHECKS:
         resp = make_response(jsonify({
             "error": "Rate limit exceeded. You've used all your free fact-checks.",
@@ -68,16 +107,23 @@ def check_rate_limit():
             "used": current_usage,
             "max": MAX_FREE_CHECKS,
             "remaining": 0,
+            "reset_at_utc": reset_at_utc,
         }), 429)
         return False, resp
-    
+
     return True, None
+
 
 def increment_usage():
     """Increment usage counter for the current IP."""
     ip = request.remote_addr or 'unknown'
-    usage_by_ip[ip] = usage_by_ip.get(ip, 0) + 1
-    print(f"[Rate Limit] IP {ip}: {usage_by_ip[ip]}/{MAX_FREE_CHECKS} checks used")
+    today = _today_utc()
+    record = usage_by_ip.get(ip)
+    if record is None or record.get("date") != today:
+        record = {"count": 0, "date": today}
+        usage_by_ip[ip] = record
+    record["count"] += 1
+    print(f"[Rate Limit] IP {ip}: {record['count']}/{MAX_FREE_CHECKS} checks used (UTC {today})")
 
 def init_clients():
     global settings, cerebras_client, parallel_client, model
@@ -146,6 +192,7 @@ def api_fact_check():
         result['elapsed_seconds'] = round(elapsed, 2)
         result['model'] = model
         result['timestamp'] = datetime.now().isoformat()
+        result['reset_at_utc'] = _next_midnight_utc()
         increment_usage()
         return jsonify(result)
 
@@ -204,6 +251,7 @@ def api_fact_check_text():
             "elapsed_seconds": round(elapsed, 2),
             "model": model,
             "timestamp": datetime.now().isoformat(),
+            "reset_at_utc": _next_midnight_utc(),
         })
 
     except Exception as e:
@@ -217,16 +265,24 @@ def get_usage():
     # Superuser check
     if request.headers.get('X-Superuser') == SUPERUSER_SECRET:
         return jsonify({"superuser": True, "unlimited": True})
-    
+
     ip = request.remote_addr or 'unknown'
-    used = usage_by_ip.get(ip, 0)
-    
-    # Sync with client's local tracker
+    today = _today_utc()
+    record = usage_by_ip.get(ip)
+
+    # Reset if new UTC day
+    if record is None or record.get("date") != today:
+        record = {"count": 0, "date": today}
+        usage_by_ip[ip] = record
+
+    used = record["count"]
+
+    # Sync with client's local tracker (same day only)
     try:
         local_used = int(request.headers.get('X-Local-Used', '0'))
         if local_used > used:
             used = local_used
-            usage_by_ip[ip] = used
+            record["count"] = used
     except ValueError:
         pass
 
@@ -235,6 +291,7 @@ def get_usage():
         "max": MAX_FREE_CHECKS,
         "remaining": max(0, MAX_FREE_CHECKS - used),
         "limit_reached": used >= MAX_FREE_CHECKS,
+        "reset_at_utc": _next_midnight_utc(),
     })
 
 

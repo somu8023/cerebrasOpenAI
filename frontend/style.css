@@ -2601,6 +2601,28 @@ textarea::placeholder {
     color: var(--primary);
 }
 
+.limit-countdown {
+    font-size: 0.82rem;
+    color: #fbbf24;
+    font-weight: 600;
+    margin-top: 6px;
+    letter-spacing: 0.01em;
+}
+
+.btn-reset-countdown {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #fbbf24;
+    font-weight: 500;
+    margin-top: 8px;
+    letter-spacing: 0.01em;
+    opacity: 0.9;
+}
+
+.btn-reset-countdown.hidden {
+    display: none;
+}
+
 /* ============================================
    RESPONSIVE
    ============================================ */
