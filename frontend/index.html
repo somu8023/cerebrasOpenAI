@@ -129,14 +129,14 @@
                         </div>
 
                         <div class="controls-row">
-                            <div class="control-pill">
+                            <div class="control-pill" onclick="toggleDropdown('reasoningDropdown')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <circle cx="12" cy="12" r="10" />
                                     <path d="M12 16v-4M12 8h.01" />
                                 </svg>
                                 <label for="reasoningEffort">Reasoning</label>
-                                <div class="select-display" onclick="toggleDropdown('reasoningDropdown')">
+                                <div class="select-display">
                                     <span>Medium</span>
                                     <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -144,21 +144,21 @@
                                         <polyline points="1 1 5 5 9 1"></polyline>
                                     </svg>
                                 </div>
-                                <div class="select-menu" id="reasoningDropdown">
+                                <div class="select-menu" id="reasoningDropdown" onclick="event.stopPropagation()">
                                     <div class="select-option" data-value="low" onmousedown="selectOption('reasoningEffort', 'low', 'Low')">Low</div>
                                     <div class="select-option selected" data-value="medium" onmousedown="selectOption('reasoningEffort', 'medium', 'Medium')">Medium</div>
                                     <div class="select-option" data-value="high" onmousedown="selectOption('reasoningEffort', 'high', 'High')">High</div>
                                 </div>
                                 <input type="hidden" id="reasoningEffort" value="medium">
                             </div>
-                            <div class="control-pill">
+                            <div class="control-pill" onclick="toggleDropdown('sourceDropdown')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                                 </svg>
                                 <label for="numSources">Source Count</label>
-                                <div class="select-display" onclick="toggleDropdown('sourceDropdown')">
+                                <div class="select-display">
                                     <span>3</span>
                                     <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -166,7 +166,7 @@
                                         <polyline points="1 1 5 5 9 1"></polyline>
                                     </svg>
                                 </div>
-                                <div class="select-menu" id="sourceDropdown">
+                                <div class="select-menu" id="sourceDropdown" onclick="event.stopPropagation()">
                                     <div class="select-option" data-value="1" onmousedown="selectOption('numSources', '1', '1')">1</div>
                                     <div class="select-option" data-value="2" onmousedown="selectOption('numSources', '2', '2')">2</div>
                                     <div class="select-option selected" data-value="3" onmousedown="selectOption('numSources', '3', '3')">3</div>
@@ -241,14 +241,14 @@
                         </div>
 
                         <div class="controls-row">
-                            <div class="control-pill">
+                            <div class="control-pill" onclick="toggleDropdown('textReasoningDropdown')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <circle cx="12" cy="12" r="10" />
                                     <path d="M12 16v-4M12 8h.01" />
                                 </svg>
                                 <label for="textReasoningEffort">Reasoning</label>
-                                <div class="select-display" onclick="toggleDropdown('textReasoningDropdown')">
+                                <div class="select-display">
                                     <span>Medium</span>
                                     <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -256,21 +256,21 @@
                                         <polyline points="1 1 5 5 9 1"></polyline>
                                     </svg>
                                 </div>
-                                <div class="select-menu" id="textReasoningDropdown">
+                                <div class="select-menu" id="textReasoningDropdown" onclick="event.stopPropagation()">
                                     <div class="select-option" data-value="low" onmousedown="selectOption('textReasoningEffort', 'low', 'Low')">Low</div>
                                     <div class="select-option selected" data-value="medium" onmousedown="selectOption('textReasoningEffort', 'medium', 'Medium')">Medium</div>
                                     <div class="select-option" data-value="high" onmousedown="selectOption('textReasoningEffort', 'high', 'High')">High</div>
                                 </div>
                                 <input type="hidden" id="textReasoningEffort" value="medium">
                             </div>
-                            <div class="control-pill">
+                            <div class="control-pill" onclick="toggleDropdown('textSourceDropdown')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                                 </svg>
                                 <label for="textNumSources">Source Count</label>
-                                <div class="select-display" onclick="toggleDropdown('textSourceDropdown')">
+                                <div class="select-display">
                                     <span>3</span>
                                     <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
                                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -278,7 +278,7 @@
                                         <polyline points="1 1 5 5 9 1"></polyline>
                                     </svg>
                                 </div>
-                                <div class="select-menu" id="textSourceDropdown">
+                                <div class="select-menu" id="textSourceDropdown" onclick="event.stopPropagation()">
                                     <div class="select-option" data-value="1" onmousedown="selectOption('textNumSources', '1', '1')">1</div>
                                     <div class="select-option" data-value="2" onmousedown="selectOption('textNumSources', '2', '2')">2</div>
                                     <div class="select-option selected" data-value="3" onmousedown="selectOption('textNumSources', '3', '3')">3</div>

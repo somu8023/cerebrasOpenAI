@@ -787,7 +787,8 @@ textarea::placeholder {
 /* Dropdown Menu */
 .select-menu {
     position: absolute;
-    top: calc(100% + 6px);
+    bottom: calc(100% + 6px);
+    top: auto;
     right: 0;
     min-width: 120px;
     background: #14161f;
@@ -800,7 +801,7 @@ textarea::placeholder {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-8px);
+    transform: translateY(8px);
     transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
                 transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
                 visibility 0.18s;
