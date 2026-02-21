@@ -83,20 +83,23 @@ def check_rate_limit():
 
     # Get or initialize record; reset automatically on new UTC day
     record = usage_by_ip.get(ip)
-    if record is None or record.get("date") != today:
+    server_has_record = record is not None and record.get("date") == today
+    if not server_has_record:
         record = {"count": 0, "date": today}
         usage_by_ip[ip] = record
 
     current_usage = record["count"]
 
-    # Sync with client's local tracker (only meaningful on same UTC day)
-    try:
-        local_used = int(request.headers.get('X-Local-Used', '0'))
-        if local_used > current_usage:
-            current_usage = local_used
-            record["count"] = current_usage
-    except ValueError:
-        pass
+    # Sync with client's local tracker ONLY when server already had a record for
+    # today — prevents stale localStorage from re-seeding a freshly restarted server.
+    if server_has_record:
+        try:
+            local_used = int(request.headers.get('X-Local-Used', '0'))
+            if local_used > current_usage:
+                current_usage = local_used
+                record["count"] = current_usage
+        except ValueError:
+            pass
 
     reset_at_utc = _next_midnight_utc()
 
@@ -271,20 +274,23 @@ def get_usage():
     record = usage_by_ip.get(ip)
 
     # Reset if new UTC day
-    if record is None or record.get("date") != today:
+    server_has_record = record is not None and record.get("date") == today
+    if not server_has_record:
         record = {"count": 0, "date": today}
         usage_by_ip[ip] = record
 
     used = record["count"]
 
-    # Sync with client's local tracker (same day only)
-    try:
-        local_used = int(request.headers.get('X-Local-Used', '0'))
-        if local_used > used:
-            used = local_used
-            record["count"] = used
-    except ValueError:
-        pass
+    # Sync with client's local tracker ONLY when server already had a record for
+    # today — prevents stale localStorage from re-seeding a freshly restarted server.
+    if server_has_record:
+        try:
+            local_used = int(request.headers.get('X-Local-Used', '0'))
+            if local_used > used:
+                used = local_used
+                record["count"] = used
+        except ValueError:
+            pass
 
     return jsonify({
         "used": used,
