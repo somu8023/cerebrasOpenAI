@@ -8,60 +8,123 @@ from parallel import Parallel
 
 def score_source_quality(url: str) -> tuple[int, str]:
     """Score a source based on domain authority and reliability.
-    
-    Returns (score, tier) where higher score = more authoritative.
+
+    Option H implementation:
+      - Explicit allowlists at every tier (no TLD freebies except .gov/.edu)
+      - Keyword-in-domain heuristic auto-catches aggregators not in denylist
+      - Default for unknowns is 20 (used for LLM context, never shown to user)
+
+    Returns (score, tier_label).
     """
     domain = urlparse(url).netloc.lower()
-    
-    # Tier 1: Government and official sources (score 100)
-    if any(domain.endswith(tld) for tld in ['.gov', '.gov.in', '.nic.in']):
-        return (100, 'Government')
-    
-    # Tier 2: Educational institutions (score 90)
-    if any(domain.endswith(tld) for tld in ['.edu', '.ac.in', '.ac.uk']):
-        return (90, 'Educational')
-    
-    # Tier 3: Major news organizations (score 80)
+    if domain.startswith("www."):
+        domain = domain[4:]
+
+    # ── Tier 0 (score 110): Primary statistical / intergovernmental datasets ────
+    tier0 = [
+        "data.worldbank.org", "worldbank.org",
+        "imf.org", "datamapper.imf.org", "data.imf.org",
+        "data.oecd.org", "stats.oecd.org", "oecd.org",
+        "unstats.un.org", "data.un.org", "un.org",
+        "data.who.int", "who.int",
+        "eurostat.ec.europa.eu",
+        "ons.gov.uk",
+        "bls.gov", "bea.gov", "census.gov", "fred.stlouisfed.org",
+        "ourworldindata.org",
+        "unodc.org", "ilo.org", "wto.org",
+        "databank.worldbank.org",
+    ]
+    if any(domain == d or domain.endswith("." + d) for d in tier0):
+        return (110, "Statistical DB")
+
+    # ── Tier 1 (score 100): Government TLDs ─────────────────────────────────────
+    gov_tlds = [".gov", ".gov.in", ".nic.in", ".gov.uk", ".gov.au",
+                ".gov.ca", ".gouv.fr", ".gob.mx", ".gov.sg", ".govt.nz"]
+    if any(domain.endswith(t) for t in gov_tlds):
+        return (100, "Government")
+
+    # ── Tier 2 (score 90): Educational institutions ──────────────────────────────
+    edu_tlds = [".edu", ".ac.in", ".ac.uk", ".edu.au"]
+    if any(domain.endswith(t) for t in edu_tlds):
+        return (90, "Educational")
+
+    # ── Tier 3a (score 85): Trusted non-profit / intergovernmental .org ──────────
+    # Only explicitly listed orgs — .org alone is NOT sufficient
+    trusted_orgs = [
+        "who.int", "unicef.org", "undp.org", "unfpa.org",
+        "wfp.org", "unep.org", "unhcr.org", "iaea.org",
+        "nato.int", "icrc.org",
+        "pewresearch.org", "brookings.edu",
+        "rand.org", "chathamhouse.org",
+        "oxfam.org", "amnesty.org", "hrw.org",
+        "nature.com", "sciencedirect.com", "pubmed.ncbi.nlm.nih.gov",
+        "scholar.google.com",
+        # Official sports governing bodies
+        "icc-cricket.com", "bcci.tv",
+        "fifa.com", "uefa.com",
+        "olympics.com", "olympic.org",
+        "iaaf.org", "worldathletics.org",
+        "itf.com", "atptour.com", "wtatennis.com",
+        "nba.com", "nfl.com", "mlb.com", "nhl.com",
+        "formula1.com",
+    ]
+    if any(domain == d or domain.endswith("." + d) for d in trusted_orgs):
+        return (85, "Trusted Org")
+
+    # ── Tier 3b (score 80): Major established news organisations ────────────────
     major_news = [
-        'bbc.com', 'reuters.com', 'apnews.com', 'npr.org',
-        'nytimes.com', 'wsj.com', 'washingtonpost.com',
-        'thehindu.com', 'indianexpress.com', 'hindustantimes.com',
-        'timesofindia.com', 'ndtv.com', 'theguardian.com'
+        "bbc.com", "reuters.com", "apnews.com", "npr.org",
+        "nytimes.com", "wsj.com", "washingtonpost.com",
+        "theguardian.com", "economist.com", "ft.com", "bloomberg.com",
+        "thehindu.com", "indianexpress.com", "hindustantimes.com",
+        "timesofindia.com", "ndtv.com",
+        "dw.com", "aljazeera.com", "france24.com",
+        "scmp.com",  # South China Morning Post
+        "businessinsider.com", "cnbc.com", "forbes.com",
+        # Sports statistics & reference databases
+        "espncricinfo.com", "cricbuzz.com",
+        "sports-reference.com", "baseball-reference.com",
+        "basketball-reference.com", "fbref.com",
+        "transfermarkt.com",
+        "espn.com",
     ]
-    if any(news in domain for news in major_news):
-        return (80, 'Major News')
-    
-    # Tier 4: Reputable organizations (score 70)
-    if any(domain.endswith(tld) for tld in ['.org']):
-        return (70, 'Organization')
-    
-    # Tier 5: Low-quality — content farms, directories, user-generated, e-commerce
-    low_quality_patterns = [
-        # Content farms & aggregators
-        'onefivenine.com', 'villageinfo.in', 'mapsofindia.com',
-        'citypopulation.de', 'answers.com', 'ehow.com', 'about.com',
-        # User-generated blogs (no editorial review)
-        'medium.com', 'substack.com', 'wordpress.com',
-        'blogger.com', 'blogspot.com', 'tumblr.com',
-        # Business directories & reviews
-        'justdial.com', 'sulekha.com', 'indiamart.com',
-        'yellowpages.com', 'yelp.com', 'glassdoor.com',
-        'trustpilot.com', 'mouthshut.com',
-        # E-commerce (product pages, not facts)
-        'amazon.com', 'amazon.in', 'flipkart.com', 'ebay.com',
-        # Travel & lifestyle reviews
-        'tripadvisor.com', 'booking.com', 'zomato.com', 'swiggy.com',
-        # Crowdsourced / user-uploaded docs
-        'scribd.com', 'issuu.com', 'slideshare.net',
-        'wikihow.com', 'wikidata.org',
-        # Website builders (anyone can publish)
-        'wix.com', 'weebly.com', 'sites.google.com',
+    if any(n in domain for n in major_news):
+        return (80, "Major News")
+
+    # ── Keyword-in-domain heuristic: likely aggregator (score 15) ────────────────
+    # Domains containing these words are almost always country-comparison /
+    # ranking aggregators or SEO data-republishers — regardless of TLD.
+    aggregator_keywords = [
+        "rank", "ranking", "compare", "comparison",
+        "economy", "economies", "economic",
+        "countrystat", "worldstat", "globalstat",
+        "profile", "indicator", "statistics",
+        "mylife", "numbeo", "knoema", "macrotrend",
     ]
-    if any(pattern in domain for pattern in low_quality_patterns):
-        return (10, 'Low-quality')
-    
-    # Default tier
-    return (50, 'Other')
+    if any(kw in domain for kw in aggregator_keywords):
+        return (15, "Likely Aggregator")
+
+    # ── Explicit denylist (score 5) ──────────────────────────────────────────────
+    denylist = [
+        "countryeconomy.com", "mylifeelsewhere.com", "numbeo.com",
+        "nationmaster.com", "indexmundi.com",
+        "globaleconomy.com", "theglobaleconomy.com", "worldometers.info",
+        "tradingeconomics.com", "macrotrends.net", "knoema.com",
+        "georank.org",
+        "cleartax.in", "investopedia.com", "bankbazaar.com",
+        "paisabazaar.com", "groww.in", "moneycontrol.com",
+        "business-standard.com", "livemint.com",
+        "economictimes.indiatimes.com",
+        "onefivenine.com", "villageinfo.in", "mapsofindia.com",
+        "citypopulation.de",
+    ]
+    if any(d in domain for d in denylist):
+        return (5, "Blocked")
+
+    # ── Default: unknown domain ──────────────────────────────────────────────────
+    # Score 20 = passes to LLM for context, but NEVER shown to user (display
+    # threshold is >= 80). Unknown != trusted.
+    return (20, "Other")
 
 
 def generate_search_variations(claim: str) -> list[str]:
@@ -200,15 +263,18 @@ def search_web(
     # Sort by quality score (highest first)
     all_results.sort(key=lambda x: x["quality_score"], reverse=True)
     
-    # Filter out low-quality sources if we have better options
-    high_quality = [r for r in all_results if r["quality_score"] >= 50]
-    low_quality = [r for r in all_results if r["quality_score"] < 50]
-    
-    # Prefer high-quality sources
-    if high_quality:
-        results = high_quality[:num]
+    # Filter: hard-exclude score <= 10, pass score >= 20 to LLM
+    all_results = [r for r in all_results if r["quality_score"] > 10]
+
+    # Prefer authoritative sources (score >= 80 = Statistical DB / Gov / Edu / Trusted Org / Major News)
+    preferred = [r for r in all_results if r["quality_score"] >= 80]
+    fallback  = [r for r in all_results if r["quality_score"] < 80]
+
+    if len(preferred) >= num:
+        results = preferred[:num]
+    elif preferred:
+        results = preferred + fallback[: num - len(preferred)]
     else:
-        # If no high-quality sources, use what we have
         results = all_results[:num]
-    
+
     return results

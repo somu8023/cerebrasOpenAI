@@ -217,13 +217,27 @@ def fact_check_single_claim(
         top_sources = [str(top_sources)]
     top_sources = [str(u) for u in top_sources][:5]
 
-    # Include all search sources for display
+    # Only show sources with score >= 80 (Statistical DB / Gov / Edu / Trusted Org / Major News)
+    # Lower-scored sources may have been used by the LLM for context but are not displayed
     search_sources = []
     for r in results:
+        if r.get("quality_score", 0) < 80:
+            continue
         title = r.get("title") or "No title"
         url = r["url"]
         quality_tier = r.get("quality_tier", "Unknown")
         search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
+
+    # Fallback: if no high-quality sources passed the threshold (e.g. sports/niche claims),
+    # show whatever was actually used by the LLM so the user sees the evidence basis
+    if not search_sources:
+        for r in results:
+            if r.get("quality_score", 0) <= 10:
+                continue  # still exclude hard-blocked domains
+            title = r.get("title") or "No title"
+            url = r["url"]
+            quality_tier = r.get("quality_tier", "Unknown")
+            search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
     
     result = {
         "claim": claim,

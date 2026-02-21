@@ -624,16 +624,25 @@ function setCubeStatus(text) {
 
 function formatReasoning(text) {
     if (!text) return '';
+
+    // Strip trailing "Verdict: X." line (LLM output leak — verdict shown in badge)
+    text = text.replace(/\n?\**Verdict\**:\s*\w+\.?\s*$/i, '').trim();
+
+    // Strip inline URLs like (https://...) — sources already shown in cards below
+    text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
+
     let formatted = escHtml(text);
 
-    // Bold: **text** -> <strong>text</strong>
+    // Bold: **text** -> <strong>
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary); font-weight: 600;">$1</strong>');
 
     // Convert newlines to breaks
     formatted = formatted.replace(/\n/g, '<br>');
 
-    // Convert structured bullet dashes to colored visual bullets
-    // Catches instances like "- " at the start or after a break
+    // Convert asterisk bullets (* item) — common LLM list format
+    formatted = formatted.replace(/(?:^|<br>)\*\s+/g, '<br><span style="color:var(--primary); margin-right:6px;">&bull;</span> ');
+
+    // Convert dash bullets (- item)
     formatted = formatted.replace(/(?:^|<br>|\s{2,})-\s+/g, '<br><span style="color:var(--primary); margin-right:6px;">&bull;</span> ');
 
     // Highlight numbered lists (e.g. 1. 2.)
