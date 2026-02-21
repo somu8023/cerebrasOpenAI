@@ -342,11 +342,19 @@ function setExample(claim) {
     // Desktop: populate directly
     const input = $('claimInput');
     if (!input) return;
-    input.value = claim;
-    input.focus();
-    input.style.borderColor = 'var(--primary)';
-    setTimeout(() => input.style.borderColor = '', 1200);
     switchTab('single');
+    input.value = claim;
+    updateCharCount('claimInput', 'claimCounter', 500);
+    toggleClearBtn('claimInput', 'clearClaim');
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus();
+    input.style.transition = 'border-color 0.3s, box-shadow 0.3s';
+    input.style.borderColor = 'var(--primary)';
+    input.style.boxShadow = '0 0 0 3px rgba(212,168,83,0.25)';
+    setTimeout(() => {
+        input.style.borderColor = '';
+        input.style.boxShadow = '';
+    }, 1600);
 }
 
 
