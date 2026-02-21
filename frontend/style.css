@@ -3165,27 +3165,59 @@ textarea::placeholder {
 }
 
 /* ============================================
-   REASONING BLOCK — MAX HEIGHT + SCROLL
+   RESULT CARD TABS
    ============================================ */
+.result-tabs-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+
+.result-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 12px 8px;
+    cursor: pointer;
+    transition: color 0.18s, border-color 0.18s;
+    margin-bottom: -1px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.result-tab:hover {
+    color: var(--text-primary);
+}
+
+.result-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-count {
+    background: rgba(212, 168, 83, 0.15);
+    color: var(--primary);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 6px;
+}
+
+.result-tab-panel.hidden {
+    display: none;
+}
+
 .result-reason p {
-    max-height: 280px;
-    overflow-y: auto;
-    padding-right: 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-}
-
-.result-reason p::-webkit-scrollbar {
-    width: 4px;
-}
-
-.result-reason p::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.result-reason p::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 2px;
+    max-height: none;
+    overflow-y: visible;
 }
 
 /* ============================================

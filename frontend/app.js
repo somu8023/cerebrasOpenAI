@@ -775,20 +775,34 @@ function renderResultCard(data, claim) {
 
         <div class="result-claim">${escHtml(claim)}</div>
 
+        ${(reasoning || searchSources.length) ? `
+        <div class="result-tabs-bar">
+            ${reasoning ? `<button class="result-tab active" onclick="switchResultTab(this,'reasoning')">Reasoning</button>` : ''}
+            ${searchSources.length ? `<button class="result-tab${reasoning ? '' : ' active'}" onclick="switchResultTab(this,'sources')">Sources <span class="tab-count">${searchSources.length}</span></button>` : ''}
+        </div>
+
         ${reasoning ? `
-        <div class="result-reason">
-            <h4>Reasoning</h4>
-            <p>${formatReasoning(reasoning)}</p>
+        <div class="result-tab-panel" data-tab="reasoning">
+            <div class="result-reason">
+                <p>${formatReasoning(reasoning)}</p>
+            </div>
         </div>` : ''}
 
         ${searchSources.length ? `
-        <div class="result-sources">
-            <h4>Sources (${searchSources.length})</h4>
-            <div class="source-list">
-                ${searchSources.map((s, i) => renderSource(s, i, citedUrls)).join('')}
+        <div class="result-tab-panel${reasoning ? ' hidden' : ''}" data-tab="sources">
+            <div class="result-sources">
+                <div class="source-list">
+                    ${searchSources.map((s, i) => renderSource(s, i, citedUrls)).join('')}
+                </div>
             </div>
-        </div>` : ''}
+        </div>` : ''}` : ''}
     </div>`;
+}
+
+function switchResultTab(btn, tab) {
+    const card = btn.closest('.result-card');
+    card.querySelectorAll('.result-tab').forEach(t => t.classList.toggle('active', t === btn));
+    card.querySelectorAll('.result-tab-panel').forEach(p => p.classList.toggle('hidden', p.dataset.tab !== tab));
 }
 
 function renderSource(s, i, citedUrls = new Set()) {
