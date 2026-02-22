@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -127,33 +129,347 @@ def score_source_quality(url: str) -> tuple[int, str]:
     return (20, "Other")
 
 
+# ── Topic → authoritative primary-source domains ──────────────────────────────
+TOPIC_DOMAIN_WHITELIST: dict[str, list[str]] = {
+    "defence":     ["nato.int", "sipri.org", "defense.gov", "mod.uk", "iiss.org"],
+    "economics":   ["imf.org", "worldbank.org", "oecd.org", "bis.org", "federalreserve.gov", "ecb.europa.eu"],
+    "health":      ["who.int", "cdc.gov", "nih.gov", "ecdc.europa.eu"],
+    "environment": ["unep.org", "ipcc.ch", "noaa.gov", "epa.gov"],
+    "trade":       ["wto.org", "unctad.org"],
+    "energy":      ["iea.org", "eia.gov", "irena.org"],
+    "population":  ["un.org", "census.gov", "stats.oecd.org"],
+    "education":   ["unesco.org", "oecd.org", "nces.ed.gov"],
+    "human_rights": ["hrw.org", "amnesty.org", "ohchr.org"],
+    "science":     ["nature.com", "pubmed.ncbi.nlm.nih.gov", "nasa.gov"],
+}
+
+# ── Pinned HTML stat pages per topic ──────────────────────────────────────────
+# These are exact URLs for HTML data pages (not PDFs) whose text content the
+# search API can extract directly, capturing tables and per-country breakdowns.
+# Used in place of generic site: queries to avoid landing on press releases / PDFs.
+TOPIC_PINNED_URLS: dict[str, list[str]] = {
+    "defence": [
+        "https://www.nato.int/cps/en/natohq/topics_49198.htm",   # NATO defence expenditure stats HTML
+        "https://www.sipri.org/databases/milex",                 # SIPRI military expenditure DB
+    ],
+    "economics": [
+        "https://www.imf.org/en/Publications/WEO/weo-database/2024/October",
+    ],
+    "health": [
+        "https://www.who.int/data/gho",
+    ],
+    "environment": [
+        "https://www.unep.org/resources/emissions-gap-report-2024",
+    ],
+    "energy": [
+        "https://www.iea.org/data-and-statistics",
+    ],
+    "trade": [
+        "https://stats.wto.org",
+    ],
+    "population": [
+        "https://population.un.org/dataportal",
+    ],
+}
+
+# ── Claim topic → detection patterns ──────────────────────────────────────────
+_TOPIC_PATTERNS: list[tuple[str, list[str]]] = [
+    ("defence",     ["nato", r"defen[cs]e", "military", r"gdp.{0,10}spend", "troop", "armed force", r"2\s*%.*gdp"]),
+    ("economics",   [r"\bGDP\b", "economy", "economic", "inflation", "recession", "fiscal", r"\bdebt\b", "budget deficit"]),
+    ("health",      ["vaccine", "covid", "pandemic", "mortality", "disease", "virus", "life expectancy"]),
+    ("environment", ["climate", "emission", "carbon", "greenhouse", "deforestation", "sea level", "temperature rise"]),
+    ("trade",       [r"\bexport\b", r"\bimport\b", "tariff", "trade war", "trade balance", "WTO"]),
+    ("energy",      [r"\boil\b", r"\bgas\b", r"\bcoal\b", "nuclear", "solar", "wind power", "energy consumption", r"\bbarrel\b"]),
+    ("population",  ["population", "birth rate", "fertility", "demographic", "migration"]),
+    ("education",   ["literacy", r"\bschool\b", "university", "dropout", "graduation rate"]),
+    ("human_rights", ["human rights", "freedom of press", "democracy index", "corruption index"]),
+    ("science",     ["speed of light", "quantum", r"\bphysics\b", r"\bchemistry\b", r"\bspace\b", r"\bplanet\b"]),
+]
+
+# ── Country / region → (language_code, language_name) ─────────────────────────
+_REGION_LANGUAGE_MAP: dict[str, tuple[str, str]] = {
+    "south korea": ("ko", "Korean"),
+    "north korea": ("ko", "Korean"),
+    "france":      ("fr", "French"),
+    "french":      ("fr", "French"),
+    "paris":       ("fr", "French"),
+    "vosges":      ("fr", "French"),
+    "alsace":      ("fr", "French"),
+    "normandy":    ("fr", "French"),
+    "germany":     ("de", "German"),
+    "german":      ("de", "German"),
+    "berlin":      ("de", "German"),
+    "bavaria":     ("de", "German"),
+    "austria":     ("de", "German"),
+    "switzerland": ("de", "German"),
+    "spain":       ("es", "Spanish"),
+    "spanish":     ("es", "Spanish"),
+    "madrid":      ("es", "Spanish"),
+    "mexico":      ("es", "Spanish"),
+    "argentina":   ("es", "Spanish"),
+    "italy":       ("it", "Italian"),
+    "italian":     ("it", "Italian"),
+    "rome":        ("it", "Italian"),
+    "japan":       ("ja", "Japanese"),
+    "japanese":    ("ja", "Japanese"),
+    "tokyo":       ("ja", "Japanese"),
+    "china":       ("zh", "Chinese"),
+    "chinese":     ("zh", "Chinese"),
+    "beijing":     ("zh", "Chinese"),
+    "russia":      ("ru", "Russian"),
+    "russian":     ("ru", "Russian"),
+    "moscow":      ("ru", "Russian"),
+    "portugal":    ("pt", "Portuguese"),
+    "brazil":      ("pt", "Portuguese"),
+    "netherlands": ("nl", "Dutch"),
+    "dutch":       ("nl", "Dutch"),
+    "poland":      ("pl", "Polish"),
+    "ukraine":     ("uk", "Ukrainian"),
+    "sweden":      ("sv", "Swedish"),
+    "norway":      ("no", "Norwegian"),
+    "denmark":     ("da", "Danish"),
+    "finland":     ("fi", "Finnish"),
+    "greece":      ("el", "Greek"),
+    "turkey":      ("tr", "Turkish"),
+    "korea":       ("ko", "Korean"),
+    "arabic":      ("ar", "Arabic"),
+    "saudi":       ("ar", "Arabic"),
+    "egypt":       ("ar", "Arabic"),
+}
+
+# ── Numeric / statistical indicator regex ──────────────────────────────────────
+_NUMERIC_RE = re.compile(
+    r'\b(\d+\.?\d*\s*%|percent|GDP|billion|trillion|million|'
+    r'budget|spending|expenditure|rank(?:ed)?\s+\d+|per\s+capita|'
+    r'rate|ratio|index|average|median|contribut)\b',
+    re.IGNORECASE,
+)
+
+# ── Topics where international official sources beat regional ones ───────────────
+# For these, locale search adds noise, not signal.
+_INTERNATIONAL_TOPICS: set[str] = {
+    "defence", "economics", "health", "environment",
+    "trade", "energy", "population",
+}
+
+# ── Regional authoritative source domains per language ───────────────────────────
+# These are real national archives, stat agencies, and encyclopedias.
+_REGIONAL_DOMAINS: dict[str, list[str]] = {
+    "fr": ["insee.fr", "ina.fr", "legifrance.gouv.fr", "archives-nationales.culture.gouv.fr",
+           "larousse.fr", "gallica.bnf.fr"],
+    "de": ["bundesarchiv.de", "destatis.de", "bpb.de", "dw.com", "spiegel.de"],
+    "es": ["ine.es", "boe.es", "cervantes.es", "elmundo.es", "elpais.com"],
+    "it": ["istat.it", "quirinale.it", "archiviodistatoit", "corriere.it", "treccani.it"],
+    "ja": ["stat.go.jp", "ndl.go.jp", "nhk.or.jp", "kantei.go.jp"],
+    "zh": ["stats.gov.cn", "xinhuanet.com", "people.com.cn"],
+    "ru": ["gks.ru", "kremlin.ru", "rbc.ru", "tass.ru"],
+    "pt": ["ibge.gov.br", "ine.pt", "pordata.pt"],
+    "nl": ["cbs.nl", "rijksoverheid.nl", "nrc.nl"],
+    "pl": ["stat.gov.pl", "gov.pl"],
+    "sv": ["scb.se", "riksdagen.se"],
+    "no": ["ssb.no", "regjeringen.no"],
+    "da": ["dst.dk", "stm.dk"],
+    "fi": ["stat.fi", "finlex.fi"],
+    "el": ["statistics.gr", "hellenicparliament.gr"],
+    "tr": ["tuik.gov.tr", "tbmm.gov.tr"],
+    "ko": ["kostat.go.kr", "korea.kr"],
+    "ar": ["stats.gov.sa", "capmas.gov.eg"],
+}
+
+
+def detect_claim_topics(claim: str) -> list[str]:
+    """Return matched topic keys for a claim (ordered, deduplicated)."""
+    matched: list[str] = []
+    for topic, patterns in _TOPIC_PATTERNS:
+        for pat in patterns:
+            if re.search(pat, claim, re.IGNORECASE):
+                matched.append(topic)
+                break
+    return matched
+
+
+def detect_claim_region(claim: str) -> tuple[str, str] | None:
+    """Detect the primary region/country mentioned in a claim.
+
+    Returns (language_code, language_name) or None.
+    Longest key matched first so "south korea" beats "korea".
+    """
+    claim_lower = claim.lower()
+    for region, lang_pair in sorted(_REGION_LANGUAGE_MAP.items(), key=lambda x: -len(x[0])):
+        if region in claim_lower:
+            return lang_pair
+    return None
+
+
+def is_numeric_claim(claim: str) -> bool:
+    """Return True if the claim contains numeric / statistical assertions."""
+    return bool(_NUMERIC_RE.search(claim))
+
+
+def should_use_locale_search(claim: str) -> tuple[bool, str]:
+    """Decide whether regional-language sources genuinely help for this claim.
+
+    Returns (use_locale: bool, reason: str).
+
+    Rules:
+    - If no region is detected → skip (no locale to use)
+    - If claim is numeric/statistical → skip (numbers live in official intl DBs)
+    - If claim topics overlap with international-authority topics → skip
+      (NATO, IMF, WHO etc. publish authoritatively in English)
+    - Otherwise (regional history, culture, geography, politics, industry) → enable
+    """
+    region = detect_claim_region(claim)
+    if region is None:
+        return False, "no region detected"
+
+    lang_code, lang_name = region
+
+    # Numeric claims: official international datasets are the ground truth
+    if is_numeric_claim(claim):
+        return False, f"numeric/statistical claim — official intl sources preferred over {lang_name}"
+
+    # International-authority topics: locale adds noise
+    topics = detect_claim_topics(claim)
+    intl_topics = [t for t in topics if t in _INTERNATIONAL_TOPICS]
+    if intl_topics:
+        return False, (
+            f"international topic(s) {intl_topics} detected — "
+            f"official domain sources preferred over {lang_name} regional sources"
+        )
+
+    # Regional history / culture / geography / local facts → locale helps
+    return True, f"regional claim about {region[1]}-speaking area — adding {lang_name} authoritative sources"
+
+
+def get_topic_domains(claim: str) -> list[str]:
+    """Return a deduplicated list of authoritative domains for the claim's topics.
+
+    Also injects regional authoritative domains when the smart locale router
+    decides they are genuinely useful (non-numeric, non-international claim).
+    """
+    topics = detect_claim_topics(claim)
+    seen: set[str] = set()
+    domains: list[str] = []
+    for topic in topics:
+        for d in TOPIC_DOMAIN_WHITELIST.get(topic, []):
+            if d not in seen:
+                seen.add(d)
+                domains.append(d)
+
+    # Inject regional domains only when locale search is actually useful
+    use_locale, _ = should_use_locale_search(claim)
+    if use_locale:
+        region = detect_claim_region(claim)
+        if region:
+            lang_code = region[0]
+            for d in _REGIONAL_DOMAINS.get(lang_code, []):
+                if d not in seen:
+                    seen.add(d)
+                    domains.append(d)
+
+    return domains
+
+
 def generate_search_variations(claim: str) -> list[str]:
-    import datetime
-    import re
-    
-    current_year = str(datetime.datetime.now().year)
+    """Generate diverse search query variations for a claim.
 
-    queries = [
-        claim,  # Original claim
-        f"verify: {claim}",  # Verification framing
-        f"fact check: {claim}",  # Fact-check framing
+    Auto-routing:
+    - Numeric/stat claims get current-year + official-domain targeted queries.
+    - Regional claims that benefit from locale get a targeted regional query.
+      (International/numeric claims skip locale automatically.)
+    """
+    _now = datetime.datetime.now()
+    current_year = str(_now.year)
+    # Annual reports are published mid-year; querying the current year before June
+    # returns non-existent or stub pages — use the previous year's report instead.
+    report_year = str(_now.year - 1) if _now.month < 6 else current_year
+    has_year = bool(re.search(r'\b(19|20)\d{2}\b', claim))
+
+    queries: list[str] = [
+        claim,
+        f"verify: {claim}",
+        f"fact check: {claim}",
     ]
-    
-    # Extract potential entity-based queries by looking for "is in" patterns
-    if " is in " in claim.lower():
-        parts = claim.lower().split(" is in ")
-        if len(parts) == 2:
-            entity = parts[0].strip()
-            location = parts[1].strip()
-            queries.append(f"where is {entity}")
-            queries.append(f"{entity} location")
-            queries.append(f"{entity} {location}")
-            
-    # Auto-inject current year if no year is mentioned in the claim
-    if not re.search(r'\b(19|20)\d{2}\b', claim):
-        queries.append(f"{claim} {current_year}")
 
-    return queries[:5]  # Limit to 5 variations
+    # Entity location shortcut
+    if " is in " in claim.lower():
+        parts = claim.lower().split(" is in ", 1)
+        entity, location = parts[0].strip(), parts[1].strip()
+        queries.append(f"where is {entity}")
+        queries.append(f"{entity} location")
+
+    # ── Numeric / statistical claim enhancements ───────────────────────────────
+    if is_numeric_claim(claim):
+        if not has_year:
+            queries.append(f"{claim} {report_year}")
+        topics = detect_claim_topics(claim)
+        # Use targeted queries that match actual stat-page content, not press releases
+        official_hints: dict[str, str] = {
+            "defence":     f"NATO members defence spending percent of GDP {report_year} who met 2 percent target list",
+            "economics":   f"IMF world economic outlook {report_year} GDP data by country",
+            "health":      f"WHO health statistics {report_year} country data",
+            "environment": f"UNEP emissions {report_year} country figures GHG",
+            "energy":      f"IEA energy statistics {report_year} country consumption",
+            "trade":       f"WTO trade statistics {report_year} country merchandise",
+            "population":  f"UN population {report_year} country estimates table",
+        }
+        for t in topics:
+            if t in official_hints and len(queries) < 8:
+                queries.append(official_hints[t])
+        # For defence claims, inject pinned HTML stat page URLs directly as queries.
+        # Parallel fetches URLs passed as queries, so this bypasses PDF extraction issues.
+        if "defence" in topics:
+            for url in TOPIC_PINNED_URLS.get("defence", []):
+                if len(queries) < 8:
+                    queries.append(url)
+    else:
+        if not has_year:
+            queries.append(f"{claim} {current_year}")
+
+    # ── Smart locale routing ───────────────────────────────────────────────────
+    use_locale, locale_reason = should_use_locale_search(claim)
+    print(f"[Locale] {locale_reason}")
+    if use_locale:
+        region = detect_claim_region(claim)
+        if region:
+            lang_code, lang_name = region
+            queries.append(f"{claim} {lang_name} sources")
+
+    return queries[:8]
+
+
+def _recency_bonus(result: dict[str, Any]) -> int:
+    """Return a recency bonus (+25 to -15) based on the result's year.
+
+    Tries publish_date first, then falls back to a 4-digit year in the URL.
+    Returns 0 if no year can be determined.
+    """
+    year: int | None = None
+
+    # 1. Try the publish_date field
+    pd = result.get("publish_date")
+    if pd:
+        m = re.search(r"(20\d{2})", str(pd))
+        if m:
+            year = int(m.group(1))
+
+    # 2. Fall back to year embedded in URL path
+    if year is None:
+        m = re.search(r"/(20\d{2})[/\-_]", result.get("url", ""))
+        if m:
+            year = int(m.group(1))
+
+    if year is None:
+        return 0
+
+    current = datetime.datetime.now().year
+    delta = current - year
+    if delta <= 0:   return 35   # current year  — beats any older high-authority source
+    if delta == 1:   return 30   # 1 year old     — still very fresh
+    if delta == 2:   return 10   # 2 years old
+    if delta == 3:   return 0    # 3 years old — neutral
+    if delta <= 5:   return -5   # 4-5 years old
+    return -15                   # 6+ years old
 
 
 def search_web(
@@ -163,6 +479,8 @@ def search_web(
     num: int = 5,
     mode: str = "one-shot",
     max_chars_per_result: int = 8000,
+    topic_domains: list[str] | None = None,
+    pinned_urls: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Search the web using Parallel's Search API.
 
@@ -207,8 +525,24 @@ def search_web(
         """
     ).strip()
 
-    # Request extra results to compensate for aggressive post-filtering
-    fetch_count = num * 3 + 4
+    if topic_domains:
+        domains_str = ", ".join(topic_domains[:6])
+        objective += (
+            f"\n\nPRIORITY SOURCES: The following authoritative domains are especially "
+            f"relevant for this claim — prefer results from them when available: {domains_str}"
+        )
+
+    if pinned_urls:
+        urls_str = "\n".join(f"  - {u}" for u in pinned_urls)
+        objective += (
+            f"\n\nCRITICAL — MUST FETCH: The following URLs contain the exact data tables "
+            f"needed to answer this question. You MUST retrieve and include content from "
+            f"these specific pages, not just the domain homepage:\n{urls_str}"
+        )
+
+    # Always fetch a fixed large pool so num=2 and num=6 draw from the same candidate set.
+    # This prevents older sources appearing when fewer results are requested.
+    fetch_count = max(num * 5, 20)
 
     search = parallel_client.beta.search(
         objective=objective,
@@ -259,14 +593,19 @@ def search_web(
         result_dict["quality_score"] = score
         result_dict["quality_tier"] = tier
         all_results.append(result_dict)
-    
-    # Sort by quality score (highest first)
-    all_results.sort(key=lambda x: x["quality_score"], reverse=True)
-    
-    # Filter: hard-exclude score <= 10, pass score >= 20 to LLM
-    all_results = [r for r in all_results if r["quality_score"] > 10]
 
-    # Prefer authoritative sources (score >= 80 = Statistical DB / Gov / Edu / Trusted Org / Major News)
+    # ── Fixed large pool: always fetch enough so num=3 and num=6 draw from the same set ──
+    # Compute composite score = quality (authority) + recency bonus
+    for res in all_results:
+        res["composite_score"] = res["quality_score"] + _recency_bonus(res)
+
+    # Sort by composite score descending (recency-weighted authority)
+    all_results.sort(key=lambda x: x["composite_score"], reverse=True)
+
+    # Filter: hard-exclude composite <= 10
+    all_results = [r for r in all_results if r["composite_score"] > 10]
+
+    # Prefer authoritative sources (quality_score >= 80); recency already baked into composite
     preferred = [r for r in all_results if r["quality_score"] >= 80]
     fallback  = [r for r in all_results if r["quality_score"] < 80]
 
@@ -276,5 +615,15 @@ def search_web(
         results = preferred + fallback[: num - len(preferred)]
     else:
         results = all_results[:num]
+
+    # ── Recency floor: always include the freshest source in the pool ─────────
+    # Guarantees that num=2 and num=6 both see the most recent evidence,
+    # preventing stale training-knowledge fallback from giving wrong verdicts.
+    if results:
+        freshest = max(all_results, key=lambda x: _recency_bonus(x), default=None)
+        if freshest and freshest["url"] not in {r["url"] for r in results}:
+            # Replace the last (lowest-composite) result with the freshest one
+            results[-1] = freshest
+            print(f"[Recency floor] Injected freshest source: {freshest['url']}")
 
     return results

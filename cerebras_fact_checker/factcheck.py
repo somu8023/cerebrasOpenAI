@@ -24,7 +24,50 @@ from parallel import Parallel
 
 from .claims import _strip_json_fences, extract_claims_from_text
 from .evidence import build_evidence_context
-from .search import search_web
+from .search import (
+    generate_search_variations,
+    get_topic_domains,
+    detect_claim_topics,
+    is_numeric_claim,
+    search_web,
+    TOPIC_PINNED_URLS,
+)
+
+
+def _build_retry_queries(claim: str, topics: list[str]) -> list[str]:
+    """Build reformulated queries when the initial search returns too few
+    high-quality sources.  Strips hedging language and adds topic-specific
+    official-source queries."""
+    current_year = str(datetime.now().year)
+
+    hedging_re = re.compile(
+        r'\b(claim(?:s|ed)?\s+that|reportedly|allegedly|it\s+is\s+said|'
+        r'some\s+say|many\s+say|people\s+say|experts\s+say|sources\s+say|'
+        r'evidence\s+suggests)\b',
+        re.IGNORECASE,
+    )
+    simplified = hedging_re.sub('', claim).strip(' ,')
+
+    queries: list[str] = [simplified, f"{simplified} {current_year}"]
+
+    topic_fallbacks: dict[str, list[str]] = {
+        "defence":     [f"NATO defence expenditure {current_year} report",
+                        f"SIPRI military spending report {current_year}"],
+        "economics":   [f"IMF world economic outlook {current_year}",
+                        f"World Bank {simplified} data"],
+        "health":      [f"WHO {simplified} {current_year}",
+                        f"CDC statistics {simplified}"],
+        "environment": [f"UNEP {simplified} {current_year}",
+                        f"IPCC report {simplified}"],
+        "energy":      [f"IEA {simplified} {current_year}"],
+        "trade":       [f"WTO {simplified} {current_year}"],
+        "population":  [f"UN population {simplified} {current_year}"],
+    }
+    for topic in topics:
+        if topic in topic_fallbacks:
+            queries.extend(topic_fallbacks[topic])
+
+    return queries[:6]
 
 
 def fact_check_single_claim(
@@ -40,10 +83,73 @@ def fact_check_single_claim(
     print(f"\nFact-checking claim: {claim}")
 
     try:
-        from .search import generate_search_variations
         search_queries = generate_search_variations(claim)
-        
-        results = search_web(parallel_client, query=search_queries, num=num_sources, mode=mode)
+        topic_domains = get_topic_domains(claim)
+        topics = detect_claim_topics(claim)
+        if topic_domains:
+            print(f"[Search] Detected topics: {topics} → boosting domains: {topic_domains[:4]}")
+
+        # Numeric/stat claims need larger excerpts to capture data tables in PDFs
+        max_chars = 16000 if is_numeric_claim(claim) else 8000
+
+        # Collect pinned HTML stat-page URLs for detected topics
+        pinned_urls_for_claim: list[str] = []
+        for t in topics:
+            pinned_urls_for_claim.extend(TOPIC_PINNED_URLS.get(t, []))
+
+        # Build a set of URL path patterns to exclude that are off-topic for this specific claim
+        # e.g. claim about 2% threshold → drop pages about the 5% commitment target
+        claim_lower = claim.lower()
+        _noise_url_patterns: list[str] = []
+        if ("2%" in claim_lower or "2 %" in claim_lower or "two percent" in claim_lower
+                or ("2" in claim_lower and "percent" in claim_lower and "gdp" in claim_lower)):
+            _noise_url_patterns = ["5-commitment", "five-percent", "5percent", "funding-nato"]
+
+        results = search_web(
+            parallel_client,
+            query=search_queries,
+            num=num_sources,
+            mode=mode,
+            topic_domains=topic_domains or None,
+            max_chars_per_result=max_chars,
+            pinned_urls=pinned_urls_for_claim or None,
+        )
+
+        # ── Retry if high-quality results are sparse ────────────────────────────
+        high_quality = [r for r in results if r.get("quality_score", 0) >= 80]
+        if len(high_quality) < 2:
+            print(
+                f"[Search] Only {len(high_quality)} high-quality source(s) found. "
+                "Retrying with reformulated queries…"
+            )
+            retry_queries = _build_retry_queries(claim, topics)
+            retry_results = search_web(
+                parallel_client,
+                query=retry_queries,
+                num=num_sources,
+                mode=mode,
+                topic_domains=topic_domains or None,
+                max_chars_per_result=max_chars,
+                pinned_urls=pinned_urls_for_claim or None,
+            )
+            # Merge, deduplicate by URL, re-sort by quality
+            seen_urls = {r["url"] for r in results}
+            for r in retry_results:
+                if r["url"] not in seen_urls:
+                    results.append(r)
+                    seen_urls.add(r["url"])
+            results.sort(key=lambda x: x.get("quality_score", 0), reverse=True)
+            results = results[:num_sources * 2]
+            print(f"[Search] After retry: {len(results)} total sources.")
+
+        # Drop off-topic noise URLs (e.g. 5% commitment pages when claim is about 2%)
+        if _noise_url_patterns:
+            before = len(results)
+            results = [r for r in results if not any(p in r["url"].lower() for p in _noise_url_patterns)]
+            dropped = before - len(results)
+            if dropped:
+                print(f"[Filter] Dropped {dropped} off-topic source(s) matching noise patterns.")
+
     except Exception as e:
         # Parallel's SDK raises AuthenticationError on bad keys.
         try:
@@ -129,7 +235,38 @@ def fact_check_single_claim(
         - Exhaustive Review: You must read and evaluate EVERY provided source snippet before reaching a verdict. Do not stop at the first source that contains partial information.
         - Cross-Referencing: Often, the data needed to verify a claim is split across multiple sources (e.g., Source 1 has Data A, Source 3 has Data B). You must actively combine data from different sources to evaluate the claim.
         - The "Uncertain" Rule: You may ONLY output an "Uncertain" verdict if you have reviewed all provided sources and the specific information required to prove or disprove the claim is entirely absent from the combined text. If you output "Uncertain," you must explicitly confirm in your reasoning that you reviewed all sources.
+
+        KNOWLEDGE SUPPLEMENT:
+        If the provided source excerpts do not contain the specific numbers needed, AND
+        the claim concerns well-established statistics published by official international
+        bodies (e.g. NATO defence expenditure reports, IMF GDP data, WHO health stats,
+        World Bank indicators), you MUST actively use your training knowledge rather than
+        defaulting to uncertain. This is not optional — uncertain is only valid if you
+        genuinely have no knowledge of the statistic at all.
+        When using training knowledge you MUST:
+        - Explicitly state: "[Training knowledge, not in provided sources]"
+        - State the approximate year your knowledge covers.
+        - Flag medium confidence and note the caveat.
+        - NOT use it if any source directly contradicts it.
+        - Still issue a definitive true/false verdict.
+
+        CRITICAL — TRAINING KNOWLEDGE FRESHNESS CHECK:
+        Before using training knowledge, check the most recent publish date across all
+        provided sources. If any source has a date within the last 2 years, that source's
+        data takes absolute priority over training knowledge — even if the source excerpt
+        does not contain the exact numbers. In that case:
+        - Do NOT fall back to training knowledge figures from an earlier year.
+        - If the source confirms the situation has changed (e.g. a 2025/2026 article says
+          country X now meets the threshold), treat that as the definitive current state.
+        - Only use training knowledge if ALL provided sources are older than 2 years OR
+          contain no date information at all.
         
+        TEMPORAL TENSE RULE:
+        If the claim uses present tense ("do not contribute", "is", "are") and does not
+        specify a year, evaluate it against the MOST RECENT data available across all
+        sources. Do not treat the claim as permanently true because it was true historically.
+        If data shows the situation has changed, the verdict must reflect the CURRENT state.
+
         Even if UI only shows True / False / Uncertain, internally compute:
         - High confidence (direct numeric proof from matching recent years)
         - Medium confidence (strong evidence but indirect)
@@ -183,30 +320,70 @@ def fact_check_single_claim(
     raw = resp.choices[0].message.content
     end_time = time.time()
 
+    # High-reasoning Cerebras models sometimes return content=None and put
+    # the answer in reasoning_content instead. Fall back to that field.
+    if not raw:
+        raw = getattr(resp.choices[0].message, "reasoning_content", None) or ""
+        if raw:
+            print("[Parser] content was None — using reasoning_content fallback.")
+
+    if not raw:
+        raw = "{}"  # Empty JSON — will fall through to stage-4 keyword scan
+        print("[Parser] Both content and reasoning_content are empty.")
+
     raw = _strip_json_fences(raw)
 
+    data: dict | None = None
+
+    # Stage 1: clean parse
     try:
         data = json.loads(raw)
     except Exception as e:
-        print("Error parsing judgment JSON:", e)
+        print("Error parsing judgment JSON (stage 1):", e)
         print("Raw model output:\n", raw)
-        # Last-ditch: try to find a JSON object anywhere in the raw string
+
+    # Stage 2: find first {...} block and try again
+    if data is None:
         m = re.search(r"(\{.*\})", raw, re.DOTALL)
         if m:
             try:
                 data = json.loads(m.group(1))
             except Exception:
-                data = {
-                    "verdict": "uncertain",
-                    "reason": "Could not parse model output.",
-                    "top_sources": [],
-                }
-        else:
+                pass
+
+    # Stage 3: the reason field may contain unescaped quotes/newlines.
+    # Extract verdict and top_sources with regex, preserve raw reason text.
+    if data is None:
+        verdict_m  = re.search(r'"verdict"\s*:\s*"(true|false|uncertain)"', raw, re.IGNORECASE)
+        reason_m   = re.search(r'"reason"\s*:\s*"(.*?)"(?:\s*,|\s*\})', raw, re.DOTALL)
+        sources_m  = re.search(r'"top_sources"\s*:\s*(\[[^\]]*\])', raw, re.DOTALL)
+        if verdict_m:
+            try:
+                sources = json.loads(sources_m.group(1)) if sources_m else []
+            except Exception:
+                sources = []
             data = {
-                "verdict": "uncertain",
-                "reason": "Could not parse model output.",
-                "top_sources": [],
+                "verdict": verdict_m.group(1).lower(),
+                "reason": reason_m.group(1).replace('\\"', '"') if reason_m else raw[:2000],
+                "top_sources": sources,
             }
+            print("Parsed via stage-3 regex extraction.")
+
+    # Stage 4: last resort — pull verdict keyword from raw text
+    if data is None:
+        raw_lower = raw.lower()
+        if '"verdict": "false"' in raw_lower or '"verdict":"false"' in raw_lower:
+            verdict_val = "false"
+        elif '"verdict": "true"' in raw_lower or '"verdict":"true"' in raw_lower:
+            verdict_val = "true"
+        else:
+            verdict_val = "uncertain"
+        data = {
+            "verdict": verdict_val,
+            "reason": raw[:4000],   # surface raw text so user can still read reasoning
+            "top_sources": [],
+        }
+        print(f"Parsed via stage-4 keyword fallback. Verdict: {verdict_val}")
 
     verdict = str(data.get("verdict", "uncertain")).lower()
     if verdict not in {"true", "false", "uncertain"}:
@@ -217,27 +394,17 @@ def fact_check_single_claim(
         top_sources = [str(top_sources)]
     top_sources = [str(u) for u in top_sources][:5]
 
-    # Only show sources with score >= 80 (Statistical DB / Gov / Edu / Trusted Org / Major News)
-    # Lower-scored sources may have been used by the LLM for context but are not displayed
+    # Show all sources that were actually searched — the user's selected count
+    # determines what they see, not an internal quality gate.
+    # Quality tier is displayed as a badge so users can judge authority themselves.
     search_sources = []
     for r in results:
-        if r.get("quality_score", 0) < 80:
-            continue
+        if r.get("quality_score", 0) <= 10:
+            continue  # still exclude hard-blocked domains
         title = r.get("title") or "No title"
         url = r["url"]
         quality_tier = r.get("quality_tier", "Unknown")
         search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
-
-    # Fallback: if no high-quality sources passed the threshold (e.g. sports/niche claims),
-    # show whatever was actually used by the LLM so the user sees the evidence basis
-    if not search_sources:
-        for r in results:
-            if r.get("quality_score", 0) <= 10:
-                continue  # still exclude hard-blocked domains
-            title = r.get("title") or "No title"
-            url = r["url"]
-            quality_tier = r.get("quality_tier", "Unknown")
-            search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
     
     result = {
         "claim": claim,
