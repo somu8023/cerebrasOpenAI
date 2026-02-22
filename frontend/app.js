@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkUsage();
     initSuperuser();
     initButtonClickAnim();
+    loadFromURL();
 });
 
 /* ============================================================
@@ -204,6 +205,7 @@ function switchTabSilent(name) {
    TEXTAREA ENTER KEY
    ============================================================ */
 function initTextareaEnter() {
+    // Desktop
     $('claimInput')?.addEventListener('keydown', e => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
@@ -211,6 +213,19 @@ function initTextareaEnter() {
         }
     });
     $('textInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            handleTextAnalysis();
+        }
+    });
+    // Mobile
+    _origGetElementById('claimInputMobile')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            handleFactCheck();
+        }
+    });
+    _origGetElementById('textInputMobile')?.addEventListener('keydown', e => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             handleTextAnalysis();
@@ -761,8 +776,10 @@ function renderResultCard(data, claim) {
     const tokens = data.tokens_used ? `${(data.tokens_used / 1000).toFixed(1)}k tokens` : '';
     const time = data.elapsed_seconds ? `${data.elapsed_seconds.toFixed(1)}s` : (data.time_taken ? `${data.time_taken.toFixed(1)}s` : '');
 
+    const sourcesJson = escHtml(JSON.stringify(searchSources.slice(0, 3).map(s => ({ title: s.title || '', url: s.url || '' }))));
+
     return `
-    <div class="result-card">
+    <div class="result-card" data-claim="${escHtml(claim)}" data-verdict="${verdict}" data-reasoning="${escHtml(reasoning)}" data-sources="${sourcesJson}">
         <div class="result-verdict-row">
             <div class="verdict-badge ${verdictClass}">
                 <div class="verdict-icon-wrap">${icon}</div>
@@ -771,6 +788,13 @@ function renderResultCard(data, claim) {
             <div class="verdict-meta">
                 ${tokens ? `<div class="meta-item">⚡ ${tokens}</div>` : ''}
                 ${time ? `<div class="meta-item">⏱ ${time}</div>` : ''}
+                <div class="meta-divider"></div>
+                <button class="result-icon-btn" onclick="copyResult(this)" title="Copy result">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+                <button class="result-icon-btn" onclick="shareResult(this)" title="Share link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </button>
             </div>
         </div>
 
@@ -798,6 +822,146 @@ function renderResultCard(data, claim) {
             </div>
         </div>` : ''}` : ''}
     </div>`;
+}
+
+/* ============================================================
+   COPY & SHARE RESULT
+   ============================================================ */
+function stripMarkdown(text) {
+    return text
+        .replace(/\*\*(.+?)\*\*/gs, '$1')
+        .replace(/\*(.+?)\*/gs, '$1')
+        .replace(/__(.+?)__/gs, '$1')
+        .replace(/_(.+?)_/gs, '$1')
+        .replace(/#{1,6}\s+/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/`(.+?)`/g, '$1')
+        .replace(/^\s*[-*+]\s+/gm, '• ')
+        .trim();
+}
+
+function markdownToHtml(text) {
+    // Escape HTML special chars first
+    let h = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    // Convert markdown
+    h = h
+        .replace(/\*\*(.+?)\*\*/gs, '<b>$1</b>')
+        .replace(/\*(.+?)\*/gs, '<i>$1</i>')
+        .replace(/__(.+?)__/gs, '<b>$1</b>')
+        .replace(/_(.+?)_/gs, '<i>$1</i>')
+        .replace(/#{1,6}\s+(.+)/g, '<b>$1</b>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/^\s*[-*+]\s+(.+)/gm, '• $1');
+    // Paragraphs: double newline → </p><p>, single newline → <br>
+    const paras = h.split(/\n{2,}/);
+    return paras.map(p => `<p style="margin:4px 0">${p.replace(/\n/g, '<br>')}</p>`).join('');
+}
+
+function copyResult(btn) {
+    const card = btn.closest('.result-card');
+    const claim = card.dataset.claim || '';
+    const verdict = card.dataset.verdict || '';
+    const reasoning = card.dataset.reasoning || '';
+    const verdictEmoji = verdict === 'TRUE' ? '✅' : verdict === 'FALSE' ? '❌' : '❓';
+    const verdictLabel = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
+
+    let sources = [];
+    try { sources = JSON.parse(card.dataset.sources || '[]'); } catch {}
+
+    // ── Plain text version ──────────────────────────────────
+    const divider = '─'.repeat(48);
+    const lines = [
+        `${verdictEmoji}  VERDICT: ${verdictLabel}`,
+        divider, 'CLAIM', `\u201c${claim}\u201d`,
+    ];
+    if (reasoning) lines.push(divider, 'REASONING', stripMarkdown(reasoning.trim()));
+    if (sources.length) {
+        lines.push(divider, 'SOURCES');
+        sources.forEach((s, i) => {
+            lines.push(`${i + 1}. ${s.title ? s.title.trim() : s.url}`);
+            if (s.url) lines.push(`   ${s.url}`);
+        });
+    }
+    lines.push(divider, `\u2014 Verified by Cerebras FactCheck`, `   ${window.location.origin}`);
+    const plainText = lines.join('\n');
+
+    // ── HTML version (bold headers → paste bold in Word) ────
+    const hr = `<hr style="border:none;border-top:1px solid #999;margin:6px 0">`;
+    let html = `<p style="margin:4px 0"><b>${verdictEmoji}&nbsp; VERDICT: ${verdictLabel}</b></p>${hr}`;
+    html += `<p style="margin:4px 0"><b>CLAIM</b></p><p style="margin:4px 0">\u201c${claim}\u201d</p>`;
+    if (reasoning) {
+        html += `${hr}<p style="margin:4px 0"><b>REASONING</b></p>${markdownToHtml(reasoning.trim())}`;
+    }
+    if (sources.length) {
+        html += `${hr}<p style="margin:4px 0"><b>SOURCES</b></p>`;
+        sources.forEach((s, i) => {
+            const title = s.title ? s.title.trim() : s.url;
+            html += `<p style="margin:4px 0">${i + 1}. ${s.url ? `<a href="${s.url}">${title}</a>` : title}</p>`;
+        });
+    }
+    html += `${hr}<p style="margin:4px 0">\u2014 Verified by Cerebras FactCheck &nbsp;|&nbsp; <a href="${window.location.origin}">${window.location.origin}</a></p>`;
+    const fullHtml = `<!DOCTYPE html><html><body>${html}</body></html>`;
+
+    // ── Write both formats to clipboard ─────────────────────
+    const doCopy = (typeof ClipboardItem !== 'undefined')
+        ? navigator.clipboard.write([new ClipboardItem({
+            'text/html':  new Blob([fullHtml], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          })])
+        : navigator.clipboard.writeText(plainText);
+
+    doCopy.then(() => {
+        btn.classList.add('copied');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+        showToast('📋 Result copied to clipboard');
+    }).catch(() => showToast('Could not copy — try again'));
+}
+
+function shareResult(btn) {
+    const card = btn.closest('.result-card');
+    const claim = card.dataset.claim || '';
+    const verdict = card.dataset.verdict || '';
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.searchParams.set('claim', claim);
+    url.searchParams.set('verdict', verdict);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+        btn.classList.add('copied');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = orig;
+        }, 2000);
+        showToast('🔗 Link copied to clipboard');
+    }).catch(() => showToast('Could not copy link'));
+}
+
+function loadFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const claim = params.get('claim');
+    if (!claim) return;
+    // Populate desktop textarea
+    const desktop = _origGetElementById('claimInput');
+    if (desktop) {
+        desktop.value = claim;
+        desktop.dispatchEvent(new Event('input'));
+    }
+    // Populate mobile textarea
+    const mobile = _origGetElementById('claimInputMobile');
+    if (mobile) {
+        mobile.value = claim;
+        mobile.dispatchEvent(new Event('input'));
+    }
+    // Clean URL without reloading
+    window.history.replaceState({}, '', window.location.pathname);
+    showToast('📋 Shared claim loaded — click Verify to check it');
 }
 
 function switchResultTab(btn, tab) {
