@@ -361,27 +361,30 @@ def get_usage():
         return jsonify({"superuser": True, "unlimited": True})
 
     ip = request.remote_addr or 'unknown'
-    today = _today_utc()
-    record = usage_by_ip.get(ip)
+    redis = _get_redis()
 
-    # Reset if new UTC day
-    server_has_record = record is not None and record.get("date") == today
-    if not server_has_record:
-        record = {"count": 0, "date": today}
-        usage_by_ip[ip] = record
-
-    used = record["count"]
-
-    # Sync with client's local tracker ONLY when server already had a record for
-    # today — prevents stale localStorage from re-seeding a freshly restarted server.
-    if server_has_record:
+    if redis is not None:
+        # --- Redis path ---
+        used = _get_count_redis(ip)
+        # Sync with client's local tracker (take whichever is higher)
         try:
             local_used = int(request.headers.get('X-Local-Used', '0'))
             if local_used > used:
                 used = local_used
-                record["count"] = used
+                _set_count_redis(ip, used)
         except ValueError:
             pass
+    else:
+        # --- In-memory fallback ---
+        used, server_has_record = _get_count_mem(ip)
+        if server_has_record:
+            try:
+                local_used = int(request.headers.get('X-Local-Used', '0'))
+                if local_used > used:
+                    used = local_used
+                    _set_count_mem(ip, used)
+            except ValueError:
+                pass
 
     return jsonify({
         "used": used,
