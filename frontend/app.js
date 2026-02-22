@@ -274,6 +274,7 @@ function renderUsageBadge() {
     if (!badges.length || !usageData) return;
 
     if (isSuperuser) {
+        stopCountdown();
         badges.forEach(b => {
             b.style.cssText = 'background:rgba(212,168,83,0.12);border:1px solid rgba(212,168,83,0.3);color:#d4a853;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:600;';
             b.innerHTML = '⚡ Superuser — Unlimited';

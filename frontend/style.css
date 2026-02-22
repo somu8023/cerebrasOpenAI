@@ -69,8 +69,8 @@
     --t-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     /* Layout */
-    --nav-h: 56px;
-    --left-w: 640px;
+    --nav-h: 68px;
+    --left-w: 520px;
 }
 
 /* ============================================
@@ -248,7 +248,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
+    padding: 0 36px;
     background: var(--bg-nav);
     border-bottom: 1px solid var(--border-subtle);
     flex-shrink: 0;
@@ -300,14 +300,14 @@ body {
 }
 
 .brand-name {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--text-primary);
     letter-spacing: -0.2px;
 }
 
 .brand-sub {
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 1.2px;
@@ -316,22 +316,27 @@ body {
 
 .brand-highlight {
     background: linear-gradient(to right,
-            var(--primary) 0%,
-            #fff 50%,
-            var(--primary) 100%);
-    background-size: 200% auto;
+            var(--primary-dark) 0%,
+            var(--primary) 35%,
+            #fff8e7 48%,
+            #ffffff 50%,
+            #fff8e7 52%,
+            var(--primary) 65%,
+            var(--primary-dark) 100%);
+    background-size: 400% auto;
     color: var(--primary);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shine 3s linear infinite;
+    animation: shine 6s ease-in-out infinite;
     display: inline-block;
+    filter: drop-shadow(0 0 4px rgba(212, 168, 83, 0.35));
 }
 
 @keyframes shine {
-    to {
-        background-position: 200% center;
-    }
+    0%   { background-position: 150% center; }
+    45%  { background-position: -50% center; }
+    100% { background-position: -50% center; }
 }
 
 /* Tabs */
@@ -566,7 +571,7 @@ body {
 }
 
 .input-title {
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     font-weight: 800;
     color: var(--text-primary);
     letter-spacing: -0.5px;
@@ -1099,7 +1104,7 @@ textarea::placeholder {
    EXAMPLE CHIPS
    ============================================ */
 .examples-section {
-    margin-top: 4px;
+    margin-top: 24px;
 }
 
 .examples-label {
