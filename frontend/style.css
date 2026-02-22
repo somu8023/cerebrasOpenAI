@@ -1867,6 +1867,63 @@ textarea::placeholder {
 }
 
 /* ============================================
+   RESULT ICON BUTTONS (Copy / Share — top right)
+   ============================================ */
+.meta-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--border-light);
+    margin: 0 2px;
+    flex-shrink: 0;
+}
+
+.result-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    background-color: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--t-normal);
+    flex-shrink: 0;
+    padding: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+.result-icon-btn svg {
+    transition: transform var(--t-normal);
+}
+
+.result-icon-btn:hover {
+    border-color: rgba(212, 168, 83, 0.35);
+    color: var(--primary);
+    background: rgba(212, 168, 83, 0.07);
+}
+
+.result-icon-btn:hover svg {
+    transform: scale(1.15);
+}
+
+.result-icon-btn:active {
+    transform: scale(0.88);
+}
+
+.result-icon-btn.copied {
+    border-color: var(--success);
+    color: var(--success);
+    background: var(--success-bg);
+    pointer-events: none;
+}
+
+/* ============================================
    SUMMARY BAR (Text Analysis)
    ============================================ */
 .summary-bar {
