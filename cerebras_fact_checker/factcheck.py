@@ -87,7 +87,7 @@ def fact_check_single_claim(
         topic_domains = get_topic_domains(claim)
         topics = detect_claim_topics(claim)
         if topic_domains:
-            print(f"[Search] Detected topics: {topics} → boosting domains: {topic_domains[:4]}")
+            print(f"[Search] Detected topics: {topics} -> boosting domains: {topic_domains[:4]}")
 
         # Numeric/stat claims need larger excerpts to capture data tables in PDFs
         max_chars = 16000 if is_numeric_claim(claim) else 8000
@@ -237,15 +237,22 @@ def fact_check_single_claim(
         - The "Uncertain" Rule: You may ONLY output an "Uncertain" verdict if you have reviewed all provided sources and the specific information required to prove or disprove the claim is entirely absent from the combined text. If you output "Uncertain," you must explicitly confirm in your reasoning that you reviewed all sources.
 
         KNOWLEDGE SUPPLEMENT:
-        If the provided source excerpts do not contain the specific numbers needed, AND
-        the claim concerns well-established statistics published by official international
-        bodies (e.g. NATO defence expenditure reports, IMF GDP data, WHO health stats,
-        World Bank indicators), you MUST actively use your training knowledge rather than
-        defaulting to uncertain. This is not optional — uncertain is only valid if you
-        genuinely have no knowledge of the statistic at all.
+        If the provided source excerpts do not contain the information needed, you MUST
+        actively use your training knowledge in ANY of the following cases — do NOT
+        default to uncertain just because sources are thin:
+        1. Well-established statistics from official international bodies (NATO, IMF, WHO,
+           World Bank, OECD, UN, SIPRI, etc.)
+        2. Historical events and facts (e.g. industrial decline of a region in the 19th or
+           20th century, wars, treaties, economic shifts) that are documented in mainstream
+           historical scholarship or encyclopaedic sources.
+        3. Scientific consensus facts (climate data, medical facts, physics, etc.)
+        4. Well-known economic or social trends covered in textbooks or major publications.
+
+        This is not optional — "uncertain" is only valid if you genuinely have NO knowledge
+        of the topic at all, even after consulting your training data.
         When using training knowledge you MUST:
         - Explicitly state: "[Training knowledge, not in provided sources]"
-        - State the approximate year your knowledge covers.
+        - State the approximate year / period your knowledge covers.
         - Flag medium confidence and note the caveat.
         - NOT use it if any source directly contradicts it.
         - Still issue a definitive true/false verdict.
@@ -279,8 +286,22 @@ def fact_check_single_claim(
         {
           "verdict": "true" | "false" | "uncertain",
           "reason": "Show your structured reasoning here, including explicit numbers and calculations utilized.",
+          "sub_claims": [
+            {"claim": "Brief description of sub-claim or component", "status": "true" | "false" | "uncertain"}
+          ],
           "top_sources": ["url1", "url2", ...]
         }
+
+        The "sub_claims" array MUST decompose the claim into 2–4 individually verifiable facts. Rules:
+        - "claim": a short plain-English description of what was checked (10–15 words max)
+        - "status": "true" if verified, "false" if contradicted, "uncertain" if unresolvable
+        - ALWAYS produce at least 2 sub_claims by splitting the claim into its distinct components:
+            * WHO/WHAT: identity or existence of the subject (e.g. "Marie-Antoinette was Queen of France")
+            * CONTEXT: the situational premise (e.g. "People were starving due to bread shortage")
+            * ACTION/CLAIM: the key assertion being made (e.g. "She said 'Let them eat cake'")
+            * CAUSAL LINK (if present): whether A caused B
+        - Do NOT collapse the whole claim into a single sub_claim that just restates it.
+        - Even a "simple" claim has at least 2 components: the subject fact and the specific assertion.
         """
     ).strip()
 
@@ -362,12 +383,21 @@ def fact_check_single_claim(
                 sources = json.loads(sources_m.group(1)) if sources_m else []
             except Exception:
                 sources = []
+            # Also try to extract sub_claims array
+            sub_claims_m = re.search(r'"sub_claims"\s*:\s*(\[.*?\])', raw, re.DOTALL)
+            try:
+                sub_claims_val = json.loads(sub_claims_m.group(1)) if sub_claims_m else []
+                if not isinstance(sub_claims_val, list):
+                    sub_claims_val = []
+            except Exception:
+                sub_claims_val = []
             data = {
                 "verdict": verdict_m.group(1).lower(),
                 "reason": reason_m.group(1).replace('\\"', '"') if reason_m else raw[:2000],
                 "top_sources": sources,
+                "sub_claims": sub_claims_val,
             }
-            print("Parsed via stage-3 regex extraction.")
+            print(f"Parsed via stage-3 regex extraction. sub_claims extracted: {len(sub_claims_val)}")
 
     # Stage 4: last resort — pull verdict keyword from raw text
     if data is None:
@@ -378,12 +408,20 @@ def fact_check_single_claim(
             verdict_val = "true"
         else:
             verdict_val = "uncertain"
+        sub_claims_m4 = re.search(r'"sub_claims"\s*:\s*(\[.*?\])', raw, re.DOTALL)
+        try:
+            sub_claims_val4 = json.loads(sub_claims_m4.group(1)) if sub_claims_m4 else []
+            if not isinstance(sub_claims_val4, list):
+                sub_claims_val4 = []
+        except Exception:
+            sub_claims_val4 = []
         data = {
             "verdict": verdict_val,
             "reason": raw[:4000],   # surface raw text so user can still read reasoning
             "top_sources": [],
+            "sub_claims": sub_claims_val4,
         }
-        print(f"Parsed via stage-4 keyword fallback. Verdict: {verdict_val}")
+        print(f"Parsed via stage-4 keyword fallback. Verdict: {verdict_val}, sub_claims: {len(sub_claims_val4)}")
 
     verdict = str(data.get("verdict", "uncertain")).lower()
     if verdict not in {"true", "false", "uncertain"}:
@@ -406,10 +444,15 @@ def fact_check_single_claim(
         quality_tier = r.get("quality_tier", "Unknown")
         search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
     
+    sub_claims = data.get("sub_claims") or []
+    if not isinstance(sub_claims, list):
+        sub_claims = []
+
     result = {
         "claim": claim,
         "verdict": verdict,
         "reason": data.get("reason", ""),
+        "sub_claims": sub_claims,
         "sources": top_sources,
         "search_sources": search_sources,
     }

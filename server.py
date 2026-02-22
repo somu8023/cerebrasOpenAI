@@ -3,6 +3,12 @@
 
 import sys
 import os
+
+# Force UTF-8 on Windows to handle Unicode in LLM responses
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 import json
 import time
 import traceback

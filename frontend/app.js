@@ -38,7 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
     initSuperuser();
     initButtonClickAnim();
     loadFromURL();
+    initSegGliders();
 });
+
+function initSegGliders() {
+    // Place glider on each pill's default active button without animation
+    Object.keys(_SEG_IDS).forEach(wrapId => {
+        const wrap = _origGetElementById(wrapId);
+        if (!wrap) return;
+        const activeBtn = wrap.querySelector('.seg-btn.active');
+        if (!activeBtn) return;
+        const glider = document.createElement('div');
+        glider.className = 'seg-glider';
+        glider.style.transition = 'none';
+        wrap.insertBefore(glider, wrap.querySelector('.seg-btn'));
+        const wrapRect = wrap.getBoundingClientRect();
+        const btnRect  = activeBtn.getBoundingClientRect();
+        glider.style.left  = (btnRect.left - wrapRect.left) + 'px';
+        glider.style.width = btnRect.width + 'px';
+        // Re-enable transition after first frame
+        requestAnimationFrame(() => { glider.style.transition = ''; });
+    });
+}
 
 /* ============================================================
    GOLD PARTICLE CANVAS
@@ -732,34 +753,55 @@ function setCubeStatus(text) {
 function formatReasoning(text) {
     if (!text) return '';
 
-    // Strip trailing "Verdict: X." line (LLM output leak — verdict shown in badge)
-    text = text.replace(/\n?\**Verdict\**:\s*\w+\.?\s*$/i, '').trim();
+    // Strip leaked output lines — already shown in UI
+    text = text.replace(/\n?\**Verdict\**:\s*\w+\.?\s*$/im, '');
+    text = text.replace(/\n?Sub-?claims?\s+evaluated?:?[\s\S]*$/im, '');
+    text = text.replace(/\n?\[Training knowledge[^\]]*\]/gi, ' <em style="color:var(--text-tertiary);font-size:0.78rem">[training knowledge]</em>');
+    text = text.trim();
 
-    // Strip inline URLs like (https://...) — sources already shown in cards below
+    // Strip bare URLs in parens — sources shown in the Sources tab
     text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
 
-    let formatted = escHtml(text);
+    // Escape HTML
+    let f = escHtml(text);
 
-    // Bold: **text** -> <strong>
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary); font-weight: 600;">$1</strong>');
+    // Section headers: lines like "Claim type", "Evidence for (1)", "Evidence Triage", etc.
+    // Match a short line (≤60 chars) ending with a colon at a line boundary
+    f = f.replace(/(^|<br>)([^<\n]{1,60}:)(?=\s*<br>|$)/g,
+        (_, pre, header) => `${pre}<span class="reasoning-label">${header}</span>`);
 
-    // Convert newlines to breaks
-    formatted = formatted.replace(/\n/g, '<br>');
+    // Bold **text**
+    f = f.replace(/\*\*(.*?)\*\*/g, '<strong class="reasoning-strong">$1</strong>');
 
-    // Convert asterisk bullets (* item) — common LLM list format
-    formatted = formatted.replace(/(?:^|<br>)\*\s+/g, '<br><span style="color:var(--primary); margin-right:6px;">&bull;</span> ');
+    // Newlines → breaks
+    f = f.replace(/\n/g, '<br>');
 
-    // Convert dash bullets (- item)
-    formatted = formatted.replace(/(?:^|<br>|\s{2,})-\s+/g, '<br><span style="color:var(--primary); margin-right:6px;">&bull;</span> ');
+    // Bullet: asterisk or dash at line start
+    f = f.replace(/(?:^|<br>)[*\-]\s+/g, '<br><span class="reasoning-bullet">&bull;</span> ');
 
-    // Highlight numbered lists (e.g. 1. 2.)
-    formatted = formatted.replace(/(?:^|<br>|\s{2,})(\d+\.)\s+/g, '<br><span style="color:var(--primary); margin-right:4px; font-weight:600;">$1</span> ');
+    // Numbered list items
+    f = f.replace(/(?:^|<br>)(\d+\.)\s+/g,
+        (_, num) => `<br><span class="reasoning-num">${num}</span> `);
 
-    // Clean up excessive <br>
-    formatted = formatted.replace(/(<br>\s*){3,}/g, '<br><br>');
-    formatted = formatted.replace(/^(<br>\s*)+/, '');
+    // Clean up stacked breaks
+    f = f.replace(/(<br>\s*){3,}/g, '<br><br>');
+    f = f.replace(/^(<br>\s*)+/, '');
 
-    return formatted;
+    return f;
+}
+
+function renderSubClaims(subClaims) {
+    if (!subClaims || !subClaims.length) return '';
+    const rows = subClaims.map(sc => {
+        const st = (sc.status || 'uncertain').toLowerCase();
+        const icon = st === 'true' ? '✓' : st === 'false' ? '✕' : '?';
+        const cls  = st === 'true' ? 'sc-true' : st === 'false' ? 'sc-false' : 'sc-uncertain';
+        return `<div class="sub-claim-row ${cls}">
+            <span class="sc-icon">${icon}</span>
+            <span class="sc-text">${escHtml(sc.claim || '')}</span>
+        </div>`;
+    }).join('');
+    return `<div class="sub-claims-list">${rows}</div>`;
 }
 
 function renderResultCard(data, claim) {
@@ -772,6 +814,7 @@ function renderResultCard(data, claim) {
     const searchSources = data.search_sources || [];
     const citedUrls = new Set(data.sources || []);
     const reasoning = data.reason || data.reasoning || data.explanation || '';
+    const subClaims = data.sub_claims || [];
     const tokens = data.tokens_used ? `${(data.tokens_used / 1000).toFixed(1)}k tokens` : '';
     const time = data.elapsed_seconds ? `${data.elapsed_seconds.toFixed(1)}s` : (data.time_taken ? `${data.time_taken.toFixed(1)}s` : '');
 
@@ -798,6 +841,8 @@ function renderResultCard(data, claim) {
         </div>
 
         <div class="result-claim">${escHtml(claim)}</div>
+
+        ${renderSubClaims(subClaims)}
 
         ${(reasoning || searchSources.length) ? `
         <div class="result-tabs-bar">
@@ -1319,10 +1364,32 @@ function selectSegment(wrapId, seg) {
     if (sEl) sEl.value = vals.sources;
 
     const wrap = _origGetElementById(wrapId);
-    if (wrap) {
-        wrap.querySelectorAll('.seg-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.seg === seg);
-        });
+    if (!wrap) return;
+
+    // Update active class
+    let activeBtn = null;
+    wrap.querySelectorAll('.seg-btn').forEach(btn => {
+        const isActive = btn.dataset.seg === seg;
+        btn.classList.toggle('active', isActive);
+        if (isActive) activeBtn = btn;
+    });
+
+    // Move glider
+    if (activeBtn) {
+        let glider = wrap.querySelector('.seg-glider');
+        if (!glider) {
+            glider = document.createElement('div');
+            glider.className = 'seg-glider';
+            // Insert before first button so it's behind them
+            wrap.insertBefore(glider, wrap.querySelector('.seg-btn'));
+            // Disable transition on first paint
+            glider.style.transition = 'none';
+            requestAnimationFrame(() => { glider.style.transition = ''; });
+        }
+        const wrapRect = wrap.getBoundingClientRect();
+        const btnRect  = activeBtn.getBoundingClientRect();
+        glider.style.left  = (btnRect.left - wrapRect.left) + 'px';
+        glider.style.width = btnRect.width + 'px';
     }
 }
 
