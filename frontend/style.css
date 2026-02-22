@@ -905,7 +905,7 @@ textarea::placeholder {
     box-shadow: 0 2px 8px rgba(212, 168, 83, 0.2);
 }
 
-.btn-verify:disabled {
+.btn-verify:disabled:not(.is-loading) {
     opacity: 0.65;
     cursor: not-allowed;
     transform: none;
@@ -993,7 +993,7 @@ textarea::placeholder {
 }
 
 /* Disabled / limit-reached state */
-.btn-verify:disabled {
+.btn-verify:disabled:not(.is-loading) {
     background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
     color: #555;
     cursor: not-allowed;
@@ -1001,16 +1001,16 @@ textarea::placeholder {
     transform: none !important;
 }
 
-.btn-verify:disabled .btn-icon {
+.btn-verify:disabled:not(.is-loading) .btn-icon {
     animation: none;
     opacity: 0.3;
 }
 
-.btn-verify:disabled .btn-scan {
+.btn-verify:disabled:not(.is-loading) .btn-scan {
     display: none;
 }
 
-.btn-verify:disabled::before {
+.btn-verify:disabled:not(.is-loading)::before {
     display: none;
 }
 
@@ -1048,19 +1048,46 @@ textarea::placeholder {
     animation: ringBurst 0.44s ease-out forwards;
 }
 
-/* ── Loading state glow pulse ────────────────── */
-@keyframes loadingGlow {
-    0%, 100% { box-shadow: 0 4px 20px rgba(212, 168, 83, 0.25),
-                            0 1px 0 rgba(255,255,255,0.15) inset; }
-    50%      { box-shadow: 0 4px 28px rgba(212, 168, 83, 0.45),
-                            0 0 0 3px rgba(212, 168, 83, 0.07),
-                            0 1px 0 rgba(255,255,255,0.15) inset; }
+/* ── Loading state — continuous gentle shimmer ── */
+@keyframes btnShimmerContinuous {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%);  }
+}
+
+/* ── Loading state — continuous shimmer on button background ── */
+@keyframes btnShimmerContinuous {
+    0%   { background-position: 200% center; }
+    100% { background-position: -200% center; }
 }
 
 .btn-verify.is-loading {
-    animation: loadingGlow 2s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        var(--primary-dark)          0%,
+        var(--primary)               18%,
+        var(--primary-light)         35%,
+        rgba(255, 252, 228, 0.95)    50%,
+        var(--primary-light)         65%,
+        var(--primary)               82%,
+        var(--primary-dark)          100%
+    );
+    background-size: 250% 100%;
+    animation: btnShimmerContinuous 3s linear infinite !important;
+    box-shadow:
+        0 4px 22px rgba(212, 168, 83, 0.35),
+        0 0 0 1px rgba(212, 168, 83, 0.1),
+        0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    cursor: wait;
 }
 
+/* suppress the hover ::before overlay during loading */
+.btn-verify.is-loading::before {
+    display: none;
+}
+
+.btn-verify.is-loading .btn-scan {
+    display: none;
+}
 
 /* Loader dots */
 .btn-loader {
@@ -3527,8 +3554,9 @@ textarea::placeholder {
     background: linear-gradient(to top, rgba(10,12,18,0.92) 0%, rgba(10,12,18,0) 100%);
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 6px;
+    padding-right: 32px;
     pointer-events: none;
 }
 
@@ -3541,6 +3569,38 @@ textarea::placeholder {
 
 .site-footer-fixed a:hover {
     color: var(--primary);
+}
+
+@keyframes shimmer-sweep {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+.shimmer-name {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    background: linear-gradient(
+        90deg,
+        var(--text-secondary) 0%,
+        var(--primary)        40%,
+        var(--primary-light)  50%,
+        var(--primary)        60%,
+        var(--text-secondary) 100%
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: shimmer-sweep 5s linear infinite;
+    text-decoration: none !important;
+    opacity: 0.85;
+}
+
+.shimmer-name:hover {
+    opacity: 1;
+    animation-duration: 2.5s;
 }
 
 .footer-sep {
