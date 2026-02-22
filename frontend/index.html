@@ -66,6 +66,11 @@
                 </div>
 
                 <div class="nav-right">
+                    <button class="nav-history-btn" id="navHistoryBtn" onclick="openHistoryDrawer()" title="Recent Checks" style="display:none;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span>History</span>
+                        <span class="nav-history-count" id="navHistoryCount">0</span>
+                    </button>
                     <div class="nav-status" id="navStatus">
                         <div class="status-dot"></div>
                         <span>Connecting...</span>
@@ -293,14 +298,7 @@
                         </button>
                     </div>
 
-                    <!-- History -->
-                    <div class="history-section" id="historySection" style="display:none;">
-                        <div class="history-header">
-                            <span class="history-title">Recent Checks</span>
-                            <button class="history-clear" onclick="clearHistory()">Clear</button>
-                        </div>
-                        <div id="historyList" class="history-list"></div>
-                    </div>
+
 
                 </div><!-- /panel-left -->
 
@@ -573,6 +571,30 @@
             </div>
             <p class="help-modal-footer">Higher reasoning uses more tokens and takes longer to respond.</p>
         </div>
+    </div>
+
+    <footer class="site-footer-fixed">
+        Built by <a href="https://www.linkedin.com/in/abhishek-singh-ba381768/" target="_blank" rel="noopener noreferrer">Abhishek Singh</a>
+        <span class="footer-sep">&middot;</span>
+        Powered by <a href="https://cerebras.ai" target="_blank" rel="noopener noreferrer">Cerebras</a>
+    </footer>
+
+    <!-- History Drawer -->
+    <div class="history-drawer-overlay" id="historyDrawerOverlay" onclick="closeHistoryDrawer()"></div>
+    <div class="history-drawer" id="historyDrawer">
+        <div class="history-drawer-header">
+            <div class="history-drawer-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Recent Checks
+            </div>
+            <div class="history-drawer-actions">
+                <button class="history-drawer-clear" onclick="clearHistory()">Clear all</button>
+                <button class="history-drawer-close" onclick="closeHistoryDrawer()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="history-drawer-list" id="drawerHistoryList"></div>
     </div>
 
     <script src="app.js"></script>

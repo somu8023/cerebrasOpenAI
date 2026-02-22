@@ -1189,33 +1189,64 @@ function addToHistory(claim, verdict) {
 }
 
 function loadHistory() {
-    const section = $('historySection');
-    const list = $('historyList');
-    if (!section || !list) return;
+    // Update navbar badge
+    const btn = $('navHistoryBtn');
+    const countEl = $('navHistoryCount');
+    if (btn) {
+        btn.style.display = checkHistory.length ? '' : 'none';
+        if (countEl) countEl.textContent = checkHistory.length;
+    }
+
+    // Populate drawer list
+    const list = $('drawerHistoryList');
+    if (!list) return;
 
     if (!checkHistory.length) {
-        section.style.display = 'none';
+        list.innerHTML = '<div class="history-drawer-empty">No checks yet — verify a claim to get started.</div>';
         return;
     }
 
-    section.style.display = '';
-    list.innerHTML = checkHistory.slice(0, 8).map(h => {
+    list.innerHTML = checkHistory.map(h => {
         const vClass = h.verdict === 'true' ? 'true' : h.verdict === 'false' ? 'false' : 'uncertain';
+        const vLabel = h.verdict === 'true' ? 'True' : h.verdict === 'false' ? 'False' : 'Uncertain';
         const timeAgo = getTimeAgo(h.time);
         return `
-        <div class="history-item" data-claim="${escHtml(h.claim)}">
-            <div class="history-verdict ${vClass}"></div>
-            <div class="history-claim">${escHtml(h.claim)}</div>
-            <div class="history-time">${timeAgo}</div>
-            <div class="history-load-icon" title="Load into editor">↩</div>
+        <div class="history-drawer-item" data-claim="${escHtml(h.claim)}">
+            <div class="history-drawer-dot ${vClass}"></div>
+            <div class="history-drawer-body">
+                <div class="history-drawer-claim">${escHtml(h.claim)}</div>
+                <div class="history-drawer-meta">
+                    <span class="history-drawer-verdict-label ${vClass}">${vLabel}</span>
+                    <span>·</span>
+                    <span>${timeAgo}</span>
+                </div>
+            </div>
+            <div class="history-drawer-load" title="Load claim">↩</div>
         </div>`;
     }).join('');
 
-    // Delegated click — safe against quotes/special chars in claim text
     list.onclick = e => {
-        const item = e.target.closest('.history-item');
-        if (item && item.dataset.claim) setExample(item.dataset.claim);
+        const item = e.target.closest('.history-drawer-item');
+        if (item && item.dataset.claim) {
+            setExample(item.dataset.claim);
+            closeHistoryDrawer();
+        }
     };
+}
+
+function openHistoryDrawer() {
+    const drawer = $('historyDrawer');
+    const overlay = $('historyDrawerOverlay');
+    if (drawer) drawer.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    loadHistory();
+}
+
+function closeHistoryDrawer() {
+    const drawer = $('historyDrawer');
+    const overlay = $('historyDrawerOverlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
 }
 
 function clearHistory() {
@@ -1416,5 +1447,5 @@ function closeHelpModal(e) {
 }
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeHelpModal();
+    if (e.key === 'Escape') { closeHelpModal(); closeHistoryDrawer(); }
 });
