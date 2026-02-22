@@ -502,7 +502,6 @@ async function handleFactCheck() {
 
     const reasoningEffort = $('reasoningEffort')?.value || 'medium';
     const numSources = parseInt($('numSources')?.value || '3');
-
     triggerHaptic('medium');
     setLoading('checkBtn', true);
     showEmptyState(true);
@@ -557,7 +556,7 @@ async function handleFactCheck() {
             showEmptyState(false);
             resultArea.innerHTML = renderResultCard(data, claim);
             showResultsClear(true);
-            addToHistory(claim, data.verdict);
+            addToHistory(claim, data.verdict, data);
             setProgress(null);
 
             if (data.verdict === 'TRUE') {
@@ -1176,11 +1175,12 @@ function triggerHaptic(type = 'light') {
 /* ============================================================
    HISTORY
    ============================================================ */
-function addToHistory(claim, verdict) {
+function addToHistory(claim, verdict, data) {
     const entry = {
         claim,
         verdict: (verdict || 'uncertain').toLowerCase(),
-        time: Date.now()
+        time: Date.now(),
+        data: data || null
     };
     checkHistory.unshift(entry);
     if (checkHistory.length > 20) checkHistory = checkHistory.slice(0, 20);
@@ -1206,12 +1206,12 @@ function loadHistory() {
         return;
     }
 
-    list.innerHTML = checkHistory.map(h => {
+    list.innerHTML = checkHistory.map((h, i) => {
         const vClass = h.verdict === 'true' ? 'true' : h.verdict === 'false' ? 'false' : 'uncertain';
         const vLabel = h.verdict === 'true' ? 'True' : h.verdict === 'false' ? 'False' : 'Uncertain';
         const timeAgo = getTimeAgo(h.time);
         return `
-        <div class="history-drawer-item" data-claim="${escHtml(h.claim)}">
+        <div class="history-drawer-item" data-claim="${escHtml(h.claim)}" data-index="${i}">
             <div class="history-drawer-dot ${vClass}"></div>
             <div class="history-drawer-body">
                 <div class="history-drawer-claim">${escHtml(h.claim)}</div>
@@ -1228,8 +1228,35 @@ function loadHistory() {
     list.onclick = e => {
         const item = e.target.closest('.history-drawer-item');
         if (item && item.dataset.claim) {
-            setExample(item.dataset.claim);
+            const idx = parseInt(item.dataset.index, 10);
+            const entry = checkHistory[idx];
+            setExample(entry.claim);
             closeHistoryDrawer();
+            if (entry && entry.data) {
+                const resultArea = $('resultArea');
+                if (resultArea) {
+                    showEmptyState(false);
+                    resultArea.innerHTML = renderResultCard(entry.data, entry.claim);
+                    showResultsClear(true);
+                    // On mobile: hide input form and scroll results into view
+                    if (window.innerWidth <= 900) {
+                        toggleMobileInputs(false);
+                        resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    // Inject cached-result disclaimer
+                    const card = resultArea.querySelector('.result-card');
+                    if (card) {
+                        const age = getTimeAgo(entry.time);
+                        const banner = document.createElement('div');
+                        banner.className = 'cached-result-banner';
+                        banner.innerHTML = `
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            <span>Showing a cached result from <strong>${age}</strong> — re-submit the claim for the latest verdict.</span>
+                        `;
+                        card.insertBefore(banner, card.firstChild);
+                    }
+                }
+            }
         }
     };
 }
@@ -1263,6 +1290,40 @@ function getTimeAgo(ts) {
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
+}
+
+/* ============================================================
+   SEGMENTED PILL CONTROL
+   ============================================================ */
+const _SEG_MAP = {
+    quick:    { reasoning: 'low',    sources: '3' },
+    standard: { reasoning: 'medium', sources: '5' },
+    deep:     { reasoning: 'high',   sources: '8' },
+};
+
+const _SEG_IDS = {
+    segPillSingle:       { r: 'reasoningEffort',           s: 'numSources' },
+    segPillText:         { r: 'textReasoningEffort',       s: 'textNumSources' },
+    segPillSingleMobile: { r: 'reasoningEffortMobile',     s: 'numSourcesMobile' },
+    segPillTextMobile:   { r: 'textReasoningEffortMobile', s: 'textNumSourcesMobile' },
+};
+
+function selectSegment(wrapId, seg) {
+    const vals = _SEG_MAP[seg];
+    const ids  = _SEG_IDS[wrapId];
+    if (!vals || !ids) return;
+
+    const rEl = _origGetElementById(ids.r);
+    const sEl = _origGetElementById(ids.s);
+    if (rEl) rEl.value = vals.reasoning;
+    if (sEl) sEl.value = vals.sources;
+
+    const wrap = _origGetElementById(wrapId);
+    if (wrap) {
+        wrap.querySelectorAll('.seg-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.seg === seg);
+        });
+    }
 }
 
 /* ============================================================

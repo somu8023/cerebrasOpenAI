@@ -134,54 +134,13 @@
                             <div class="char-counter" id="claimCounter">0 / 500</div>
                         </div>
 
-                        <div class="controls-row">
-                            <div class="control-pill" onclick="toggleDropdown('reasoningDropdown')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 16v-4M12 8h.01" />
-                                </svg>
-                                <label for="reasoningEffort">Reasoning</label>
-                                <div class="select-display">
-                                    <span>Medium</span>
-                                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <polyline points="1 1 5 5 9 1"></polyline>
-                                    </svg>
-                                </div>
-                                <div class="select-menu" id="reasoningDropdown" onclick="event.stopPropagation()">
-                                    <div class="select-option" data-value="low" onmousedown="selectOption('reasoningEffort', 'low', 'Low')">Low</div>
-                                    <div class="select-option selected" data-value="medium" onmousedown="selectOption('reasoningEffort', 'medium', 'Medium')">Medium</div>
-                                    <div class="select-option" data-value="high" onmousedown="selectOption('reasoningEffort', 'high', 'High')">High</div>
-                                </div>
-                                <input type="hidden" id="reasoningEffort" value="medium">
-                            </div>
-                            <div class="control-pill" onclick="toggleDropdown('sourceDropdown')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                </svg>
-                                <label for="numSources">Source Count</label>
-                                <div class="select-display">
-                                    <span>3</span>
-                                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <polyline points="1 1 5 5 9 1"></polyline>
-                                    </svg>
-                                </div>
-                                <div class="select-menu" id="sourceDropdown" onclick="event.stopPropagation()">
-                                    <div class="select-option" data-value="1" onmousedown="selectOption('numSources', '1', '1')">1</div>
-                                    <div class="select-option" data-value="2" onmousedown="selectOption('numSources', '2', '2')">2</div>
-                                    <div class="select-option selected" data-value="3" onmousedown="selectOption('numSources', '3', '3')">3</div>
-                                    <div class="select-option" data-value="4" onmousedown="selectOption('numSources', '4', '4')">4</div>
-                                    <div class="select-option" data-value="5" onmousedown="selectOption('numSources', '5', '5')">5</div>
-                                    <div class="select-option" data-value="6" onmousedown="selectOption('numSources', '6', '6')">6</div>
-                                </div>
-                                <input type="hidden" id="numSources" value="3">
-                            </div>
+                        <label class="seg-pill-label">Analysis Depth</label>
+                        <div class="seg-pill-wrap" id="segPillSingle">
+                            <input type="hidden" id="reasoningEffort" value="medium">
+                            <input type="hidden" id="numSources" value="5">
+                            <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillSingle','quick')">Quick</button>
+                            <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillSingle','standard')">Standard</button>
+                            <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillSingle','deep')">Deep</button>
                         </div>
 
                         <button id="checkBtn" class="btn-verify" onclick="handleFactCheck()">
@@ -237,55 +196,14 @@
                             <div class="char-counter" id="textCounter">0 / 5,000</div>
                         </div>
 
-                        <div class="controls-row">
-                            <div class="control-pill" onclick="toggleDropdown('textReasoningDropdown')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 16v-4M12 8h.01" />
-                                </svg>
-                                <label for="textReasoningEffort">Reasoning</label>
-                                <div class="select-display">
-                                    <span>Medium</span>
-                                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <polyline points="1 1 5 5 9 1"></polyline>
-                                    </svg>
-                                </div>
-                                <div class="select-menu" id="textReasoningDropdown" onclick="event.stopPropagation()">
-                                    <div class="select-option" data-value="low" onmousedown="selectOption('textReasoningEffort', 'low', 'Low')">Low</div>
-                                    <div class="select-option selected" data-value="medium" onmousedown="selectOption('textReasoningEffort', 'medium', 'Medium')">Medium</div>
-                                    <div class="select-option" data-value="high" onmousedown="selectOption('textReasoningEffort', 'high', 'High')">High</div>
-                                </div>
-                                <input type="hidden" id="textReasoningEffort" value="medium">
-                            </div>
-                            <div class="control-pill" onclick="toggleDropdown('textSourceDropdown')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                </svg>
-                                <label for="textNumSources">Source Count</label>
-                                <div class="select-display">
-                                    <span>3</span>
-                                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <polyline points="1 1 5 5 9 1"></polyline>
-                                    </svg>
-                                </div>
-                                <div class="select-menu" id="textSourceDropdown" onclick="event.stopPropagation()">
-                                    <div class="select-option" data-value="1" onmousedown="selectOption('textNumSources', '1', '1')">1</div>
-                                    <div class="select-option" data-value="2" onmousedown="selectOption('textNumSources', '2', '2')">2</div>
-                                    <div class="select-option selected" data-value="3" onmousedown="selectOption('textNumSources', '3', '3')">3</div>
-                                    <div class="select-option" data-value="4" onmousedown="selectOption('textNumSources', '4', '4')">4</div>
-                                    <div class="select-option" data-value="5" onmousedown="selectOption('textNumSources', '5', '5')">5</div>
-                                    <div class="select-option" data-value="6" onmousedown="selectOption('textNumSources', '6', '6')">6</div>
-                                </div>
-                                <input type="hidden" id="textNumSources" value="3">
-                                <input type="hidden" id="maxClaims" value="6">
-                            </div>
+                        <label class="seg-pill-label">Analysis Depth</label>
+                        <div class="seg-pill-wrap" id="segPillText">
+                            <input type="hidden" id="textReasoningEffort" value="medium">
+                            <input type="hidden" id="textNumSources" value="5">
+                            <input type="hidden" id="maxClaims" value="6">
+                            <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillText','quick')">Quick</button>
+                            <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillText','standard')">Standard</button>
+                            <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillText','deep')">Deep</button>
                         </div>
 
                         <button id="analyzeBtn" class="btn-verify" onclick="handleTextAnalysis()">
@@ -375,6 +293,11 @@
                             class="brand-highlight">FactCheck</span></div>
                 </a>
                 <div id="usageBadgeMobile" class="mobile-usage-badge"></div>
+                <button class="nav-history-btn" id="navHistoryBtnMobile" onclick="openHistoryDrawer()" title="Recent Checks" style="display:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>History</span>
+                    <span class="nav-history-count" id="navHistoryCountMobile">0</span>
+                </button>
                 <button class="help-btn help-btn-mobile" onclick="openHelpModal()" title="How to use">?</button>
             </div>
 
@@ -418,26 +341,13 @@
                         onclick="clearInput('claimInputMobile')">✕</button>
                     <div class="char-counter" id="claimCounterMobile">0 / 500</div>
 
-                    <div class="mobile-controls">
-                        <div class="mobile-control-item">
-                            <label>Reasoning</label>
-                            <select id="reasoningEffortMobile" class="native-select">
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                        <div class="mobile-control-item">
-                            <label>Sources</label>
-                            <select id="numSourcesMobile" class="native-select">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3" selected>3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                            </select>
-                        </div>
+                    <label class="seg-pill-label" style="margin-top:14px;">Analysis Depth</label>
+                    <div class="seg-pill-wrap" id="segPillSingleMobile">
+                        <input type="hidden" id="reasoningEffortMobile" value="medium">
+                        <input type="hidden" id="numSourcesMobile" value="5">
+                        <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillSingleMobile','quick')">Quick</button>
+                        <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillSingleMobile','standard')">Standard</button>
+                        <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillSingleMobile','deep')">Deep</button>
                     </div>
                 </div>
                 <button id="checkBtnMobile" class="btn-verify mobile-btn-verify" onclick="handleFactCheck()">
@@ -480,26 +390,13 @@
                         onclick="clearInput('textInputMobile')">✕</button>
                     <div class="char-counter" id="textCounterMobile">0 / 5,000</div>
 
-                    <div class="mobile-controls">
-                        <div class="mobile-control-item">
-                            <label>Reasoning</label>
-                            <select id="textReasoningEffortMobile" class="native-select">
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                        <div class="mobile-control-item">
-                            <label>Sources</label>
-                            <select id="textNumSourcesMobile" class="native-select">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3" selected>3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                            </select>
-                        </div>
+                    <label class="seg-pill-label" style="margin-top:14px;">Analysis Depth</label>
+                    <div class="seg-pill-wrap" id="segPillTextMobile">
+                        <input type="hidden" id="textReasoningEffortMobile" value="medium">
+                        <input type="hidden" id="textNumSourcesMobile" value="5">
+                        <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillTextMobile','quick')">Quick</button>
+                        <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillTextMobile','standard')">Standard</button>
+                        <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillTextMobile','deep')">Deep</button>
                     </div>
                 </div>
                 <input type="hidden" id="maxClaimsMobile" value="6">
@@ -543,12 +440,12 @@
                 <span class="help-modal-icon">&#x2728;</span>
                 <h3>How to get the best results</h3>
             </div>
-            <p class="help-modal-tip">Start small &mdash; <strong>Low reasoning, 2&ndash;3 sources</strong> is fast and handles most facts well. Hit <strong>Uncertain</strong>? That&rsquo;s your cue to escalate.</p>
+            <p class="help-modal-tip">Start with <strong>Quick</strong> &mdash; it&rsquo;s fast and handles most facts well. Hit <strong>Uncertain</strong>? Step up to the next level.</p>
             <div class="help-tiers">
                 <div class="help-tier green">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">Low &nbsp;+&nbsp; 2&ndash;3 sources</span>
+                        <span class="help-tier-label">Quick</span>
                     </div>
                     <div class="help-tier-desc">Fastest. Best for clear-cut, widely reported facts.</div>
                 </div>
@@ -556,7 +453,7 @@
                 <div class="help-tier yellow">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">Medium &nbsp;+&nbsp; 4&ndash;5 sources</span>
+                        <span class="help-tier-label">Standard</span>
                     </div>
                     <div class="help-tier-desc">Balanced. Better for statistics, rankings, or recent events.</div>
                 </div>
@@ -564,12 +461,12 @@
                 <div class="help-tier red">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">High &nbsp;+&nbsp; 6 sources</span>
+                        <span class="help-tier-label">Deep</span>
                     </div>
-                    <div class="help-tier-desc">Deepest analysis. Use when verdict keeps returning Uncertain.</div>
+                    <div class="help-tier-desc">Most thorough. Use when verdict keeps returning Uncertain.</div>
                 </div>
             </div>
-            <p class="help-modal-footer">Higher reasoning uses more tokens and takes longer to respond.</p>
+            <p class="help-modal-footer">Higher analysis depth uses more tokens and takes longer to respond.</p>
         </div>
     </div>
 
