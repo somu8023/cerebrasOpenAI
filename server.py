@@ -37,8 +37,30 @@ model = None
 # ---- Soft Launch: Server-Side Rate Limiting ----
 MAX_FREE_CHECKS = int(os.getenv('MAX_FREE_CHECKS', 5))
 SUPERUSER_SECRET = os.getenv('SUPERUSER_SECRET', 'cerebras2024')
-usage_by_ip: dict[str, dict] = {}  # IP -> {"count": int, "date": "YYYY-MM-DD"}
-_request_count = 0  # for periodic stale-IP cleanup
+
+# In-memory fallback (used when Redis is not configured, e.g. local dev)
+_mem_usage: dict[str, dict] = {}  # IP -> {"count": int, "date": "YYYY-MM-DD"}
+
+# ---- Redis (Upstash) client ----
+_redis_client = None
+
+def _get_redis():
+    """Return an Upstash Redis client if env vars are present, else None."""
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    url = os.getenv('UPSTASH_REDIS_REST_URL')
+    token = os.getenv('UPSTASH_REDIS_REST_TOKEN')
+    if url and token:
+        try:
+            from upstash_redis import Redis
+            _redis_client = Redis(url=url, token=token)
+            print("[Rate Limit] Using Upstash Redis for persistent quota tracking.")
+        except Exception as e:
+            print(f"[Rate Limit] Redis init failed, falling back to in-memory: {e}")
+    else:
+        print("[Rate Limit] UPSTASH_REDIS_REST_URL/TOKEN not set — using in-memory fallback.")
+    return _redis_client
 
 
 def _today_utc() -> str:
@@ -53,13 +75,86 @@ def _next_midnight_utc() -> str:
     return next_mid.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _cleanup_stale_ips():
+def _seconds_until_midnight() -> int:
+    """Seconds remaining until next UTC midnight (+ 60s buffer)."""
+    from datetime import timedelta
+    now = datetime.utcnow()
+    midnight = datetime(now.year, now.month, now.day) + timedelta(days=1)
+    return int((midnight - now).total_seconds()) + 60
+
+
+def _redis_key(ip: str) -> str:
+    return f"ratelimit:{ip}:{_today_utc()}"
+
+
+def _get_count_redis(ip: str) -> int:
+    """Get today's usage count for an IP from Redis."""
+    r = _get_redis()
+    if r is None:
+        return 0
+    try:
+        val = r.get(_redis_key(ip))
+        return int(val) if val is not None else 0
+    except Exception as e:
+        print(f"[Rate Limit] Redis GET error: {e}")
+        return 0
+
+
+def _set_count_redis(ip: str, count: int):
+    """Set today's usage count for an IP in Redis with a TTL until next midnight."""
+    r = _get_redis()
+    if r is None:
+        return
+    try:
+        key = _redis_key(ip)
+        ttl = _seconds_until_midnight()
+        r.set(key, count, ex=ttl)
+    except Exception as e:
+        print(f"[Rate Limit] Redis SET error: {e}")
+
+
+def _incr_redis(ip: str) -> int:
+    """Atomically increment today's usage count and return the new value."""
+    r = _get_redis()
+    if r is None:
+        return 0
+    try:
+        key = _redis_key(ip)
+        new_val = r.incr(key)
+        # Set TTL only on first increment (when key was just created)
+        if new_val == 1:
+            r.expire(key, _seconds_until_midnight())
+        return new_val
+    except Exception as e:
+        print(f"[Rate Limit] Redis INCR error: {e}")
+        return 0
+
+
+# ---- Fallback in-memory helpers ----
+
+def _get_count_mem(ip: str) -> tuple[int, bool]:
+    """Returns (current_count, had_existing_record_today)."""
     today = _today_utc()
-    stale = [ip for ip, rec in usage_by_ip.items() if rec.get("date", "") < today]
-    for ip in stale:
-        del usage_by_ip[ip]
-    if stale:
-        print(f"[Rate Limit] Cleaned up {len(stale)} stale IP records")
+    record = _mem_usage.get(ip)
+    if record and record.get("date") == today:
+        return record["count"], True
+    _mem_usage[ip] = {"count": 0, "date": today}
+    return 0, False
+
+
+def _set_count_mem(ip: str, count: int):
+    today = _today_utc()
+    _mem_usage[ip] = {"count": count, "date": today}
+
+
+def _incr_mem(ip: str) -> int:
+    today = _today_utc()
+    record = _mem_usage.get(ip)
+    if record is None or record.get("date") != today:
+        record = {"count": 0, "date": today}
+        _mem_usage[ip] = record
+    record["count"] += 1
+    return record["count"]
 
 
 def check_rate_limit():
@@ -67,39 +162,36 @@ def check_rate_limit():
     Returns (allowed: bool, response_or_none).
     When allowed=False, response is a ready-to-return Flask response with status 429.
     """
-    global _request_count
     from flask import make_response
     # Superuser bypass via secret header
     if request.headers.get('X-Superuser') == SUPERUSER_SECRET:
         return True, None
 
     ip = request.remote_addr or 'unknown'
-    today = _today_utc()
+    redis = _get_redis()
 
-    # Periodic cleanup every 100 requests
-    _request_count += 1
-    if _request_count % 100 == 0:
-        _cleanup_stale_ips()
-
-    # Get or initialize record; reset automatically on new UTC day
-    record = usage_by_ip.get(ip)
-    server_has_record = record is not None and record.get("date") == today
-    if not server_has_record:
-        record = {"count": 0, "date": today}
-        usage_by_ip[ip] = record
-
-    current_usage = record["count"]
-
-    # Sync with client's local tracker ONLY when server already had a record for
-    # today — prevents stale localStorage from re-seeding a freshly restarted server.
-    if server_has_record:
+    if redis is not None:
+        # --- Redis path ---
+        current_usage = _get_count_redis(ip)
+        # Sync with client's local tracker (take whichever is higher)
         try:
             local_used = int(request.headers.get('X-Local-Used', '0'))
             if local_used > current_usage:
                 current_usage = local_used
-                record["count"] = current_usage
+                _set_count_redis(ip, current_usage)
         except ValueError:
             pass
+    else:
+        # --- In-memory fallback path ---
+        current_usage, server_has_record = _get_count_mem(ip)
+        if server_has_record:
+            try:
+                local_used = int(request.headers.get('X-Local-Used', '0'))
+                if local_used > current_usage:
+                    current_usage = local_used
+                    _set_count_mem(ip, current_usage)
+            except ValueError:
+                pass
 
     reset_at_utc = _next_midnight_utc()
 
@@ -120,13 +212,12 @@ def check_rate_limit():
 def increment_usage():
     """Increment usage counter for the current IP."""
     ip = request.remote_addr or 'unknown'
-    today = _today_utc()
-    record = usage_by_ip.get(ip)
-    if record is None or record.get("date") != today:
-        record = {"count": 0, "date": today}
-        usage_by_ip[ip] = record
-    record["count"] += 1
-    print(f"[Rate Limit] IP {ip}: {record['count']}/{MAX_FREE_CHECKS} checks used (UTC {today})")
+    redis = _get_redis()
+    if redis is not None:
+        new_count = _incr_redis(ip)
+    else:
+        new_count = _incr_mem(ip)
+    print(f"[Rate Limit] IP {ip}: {new_count}/{MAX_FREE_CHECKS} checks used (UTC {_today_utc()})")
 
 def init_clients():
     global settings, cerebras_client, parallel_client, model
