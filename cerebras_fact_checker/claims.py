@@ -31,7 +31,6 @@ def extract_claims_from_text(
     text: str,
     model: str,
     max_claims: int = 8,
-    reasoning_effort: str = "medium",
 ) -> list[str]:
     """Use Cerebras LLM to extract atomic factual claims from text.
 
@@ -64,7 +63,7 @@ def extract_claims_from_text(
         temperature=1.0,
         top_p=1.0,
         max_tokens=4096,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort="medium",
     )
     raw = resp.choices[0].message.content
     end_time = time.time()

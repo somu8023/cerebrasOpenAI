@@ -70,6 +70,40 @@ def _build_retry_queries(claim: str, topics: list[str]) -> list[str]:
     return queries[:6]
 
 
+def _generate_llm_search_queries(cerebras_client: Cerebras, claim: str, model: str) -> list[str]:
+    """Use the LLM to aggressively decompose a complex claim into 2-3 optimal search engine queries.
+    This runs in < 0.5s and dramatically improves source retrieval for niche/historical topics."""
+    prompt = f"""
+    You are an expert search engine operator.
+    Convert this complex claim into exactly 2 or 3 highly optimized, targeted search queries.
+    
+    RULES:
+    - Strip all filler words (the, of, is, due to, etc.).
+    - Keep only core entities, years, and specific actions.
+    - If the claim is about a specific non-English region (e.g., France, Germany, Japan), TRANSLATE the search queries into the native language of that region. This is CRITICAL for finding local archival sources.
+    - If the claim has multiple sub-components, create one query covering the overall context and one for the specific trigger.
+    - Do NOT wrap queries in quotes. Do NOT number them.
+    - Return ONLY the queries, one per line. No preamble.
+    
+    CLAIM: "{claim}"
+    """
+    try:
+        start_t = time.time()
+        response = cerebras_client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=80,
+        )
+        content = response.choices[0].message.content or ""
+        queries = [q.strip("-*• 1234567890.)\"'") for q in content.split('\n') if q.strip()]
+        queries = [q for q in queries if len(q) > 4][:3]
+        print(f"[Pre-Search] LLM generated {len(queries)} targeted queries in {time.time() - start_t:.2f}s: {queries}")
+        return queries
+    except Exception as e:
+        print(f"[Pre-Search] LLM query generation failed: {e}")
+        return []
+
 def fact_check_single_claim(
     cerebras_client: Cerebras,
     parallel_client: Parallel,
@@ -77,20 +111,37 @@ def fact_check_single_claim(
     claim: str,
     model: str,
     mode: str = "one-shot",
-    num_sources: int = 12,
-    reasoning_effort: str = "medium",
+    num_sources: int = 5,
 ) -> dict[str, Any]:
     print(f"\nFact-checking claim: {claim}")
 
     try:
-        search_queries = generate_search_variations(claim)
+        # Pre-Search: ask LLM for optimized sub-claim queries
+        llm_queries = _generate_llm_search_queries(cerebras_client, claim, model)
+        # Combine with standard search variations
+        search_queries = llm_queries + generate_search_variations(claim)
+
         topic_domains = get_topic_domains(claim)
         topics = detect_claim_topics(claim)
         if topic_domains:
             print(f"[Search] Detected topics: {topics} -> boosting domains: {topic_domains[:4]}")
 
-        # Numeric/stat claims need larger excerpts to capture data tables in PDFs
-        max_chars = 16000 if is_numeric_claim(claim) else 8000
+        # Numeric/stat claims need larger excerpts to capture data tables in PDFs.
+        # Historical claims also get a large window — archival PDFs are dense and
+        # the relevant paragraph may appear deep in a 50-page document.
+        topics = detect_claim_topics(claim)
+        _is_hist_claim = "history" in topics or bool(_HISTORICAL_RE.search(claim)) if hasattr(__builtins__, '__import__') else False
+        try:
+            from .search import _HISTORICAL_RE as _HIST_RE_LOCAL
+            _is_hist_claim = "history" in topics or bool(_HIST_RE_LOCAL.search(claim))
+        except Exception:
+            pass
+        if is_numeric_claim(claim):
+            max_chars = 16000
+        elif _is_hist_claim:
+            max_chars = 20000   # archival PDFs need more room
+        else:
+            max_chars = 8000
 
         # Collect pinned HTML stat-page URLs for detected topics
         pinned_urls_for_claim: list[str] = []
@@ -170,7 +221,7 @@ def fact_check_single_claim(
     system_prompt_content = textwrap.dedent(
         """
         You are a claim verification engine.
-        Your task is to evaluate a claim strictly using the provided evidence.
+        Your task is to evaluate a claim using ONLY the provided source evidence.
         
         Follow this structured reasoning process:
         
@@ -199,7 +250,7 @@ def fact_check_single_claim(
         Extract explicit evidence
         Extract only explicit data from the highest-ranking sources.
         Include numeric values with units. Include dates. Include definitions if relevant.
-        Do not infer missing values.
+        Do not fabricate numeric values not present in the sources.
         
         Perform logical evaluation
         If the claim requires:
@@ -210,64 +261,47 @@ def fact_check_single_claim(
         - Definition -> verify against official standard.
         - Ratio stated narratively (e.g., "five times") -> verify the underlying numeric values and compute the ratio directly if possible. Prefer exact rates over rounded descriptive statements.
         
-        Determine verdict
-        - true if evidence directly supports the claim.
-        - false if evidence directly contradicts the claim.
-        - uncertain if required data is missing or ambiguous.
-        
+        Determine verdict (SOURCES ONLY — do NOT use training knowledge):
+
+        Step 1 — Analyze and synthesize source evidence:
+        Read EVERY provided source snippet. You MUST reason across multiple sources —
+        combine facts, data points, and context from different sources to build a
+        complete picture (e.g., Source 1 has Data A, Source 3 has Data B — combine them).
+        You are expected to draw logical inferences from the evidence. For example:
+        - If sources discuss a topic's broader context (e.g., European textile decline,
+          Asian trade patterns), use that to evaluate specific claims within that context.
+        - If multiple sources consistently point in one direction, that constitutes
+          sufficient evidence for a verdict.
+        - If a source discusses a region, time period, or trend relevant to the claim,
+          use it — do not dismiss it merely because it doesn't name the exact entity.
+
+        Based on your synthesis:
+        - If the combined evidence supports the claim → verdict: true
+        - If the combined evidence contradicts the claim → verdict: false
+
+        Step 2 — ONLY if the sources contain NO relevant information at all:
+        - verdict: uncertain
+        - This should be rare. Most searches return at least partially relevant sources.
+        - Do NOT fall back to your training knowledge to fill gaps.
+        - Do NOT introduce facts, statistics, or knowledge from your training data.
+        - Only the provided source excerpts count as evidence.
+
+        VERDICT GUIDELINES:
         Never rely on tone, narrative framing, or general statements.
-        Do not assume facts not explicitly present.
         If a claim contains measurable or numeric language, you must explicitly show the values used to evaluate it before issuing a verdict.
-        
+
         If the claim references a specific year, time period, or entity:
         - Prefer evidence that directly matches that timeframe or entity.
         - Penalize sources that do not directly reference the claim's scope.
         - Do not rely solely on political press releases or advocacy content if neutral datasets are available.
         - Prioritize primary data sources over commentary.
-        
+
         TEMPORAL / RECENCY REQUIREMENTS:
         - If the claim does not specify a year, prioritize the most recent available data in the excerpts.
         - If multiple years are available, use the most recent comparable year.
         - NEVER compare statistics from severely mismatched years (e.g., comparing 1992 US data to 2020 German data).
         - If the only evidence available is highly outdated (e.g., >10 years old) and the claim implies current times, state this clearly in your reasoning and lower confidence or mark uncertain if it invalidates a modern comparison.
-        
-        EXHAUSTIVE REVIEW & CROSS-REFERENCING:
-        - Exhaustive Review: You must read and evaluate EVERY provided source snippet before reaching a verdict. Do not stop at the first source that contains partial information.
-        - Cross-Referencing: Often, the data needed to verify a claim is split across multiple sources (e.g., Source 1 has Data A, Source 3 has Data B). You must actively combine data from different sources to evaluate the claim.
-        - The "Uncertain" Rule: You may ONLY output an "Uncertain" verdict if you have reviewed all provided sources and the specific information required to prove or disprove the claim is entirely absent from the combined text. If you output "Uncertain," you must explicitly confirm in your reasoning that you reviewed all sources.
 
-        KNOWLEDGE SUPPLEMENT:
-        If the provided source excerpts do not contain the information needed, you MUST
-        actively use your training knowledge in ANY of the following cases — do NOT
-        default to uncertain just because sources are thin:
-        1. Well-established statistics from official international bodies (NATO, IMF, WHO,
-           World Bank, OECD, UN, SIPRI, etc.)
-        2. Historical events and facts (e.g. industrial decline of a region in the 19th or
-           20th century, wars, treaties, economic shifts) that are documented in mainstream
-           historical scholarship or encyclopaedic sources.
-        3. Scientific consensus facts (climate data, medical facts, physics, etc.)
-        4. Well-known economic or social trends covered in textbooks or major publications.
-
-        This is not optional — "uncertain" is only valid if you genuinely have NO knowledge
-        of the topic at all, even after consulting your training data.
-        When using training knowledge you MUST:
-        - Explicitly state: "[Training knowledge, not in provided sources]"
-        - State the approximate year / period your knowledge covers.
-        - Flag medium confidence and note the caveat.
-        - NOT use it if any source directly contradicts it.
-        - Still issue a definitive true/false verdict.
-
-        CRITICAL — TRAINING KNOWLEDGE FRESHNESS CHECK:
-        Before using training knowledge, check the most recent publish date across all
-        provided sources. If any source has a date within the last 2 years, that source's
-        data takes absolute priority over training knowledge — even if the source excerpt
-        does not contain the exact numbers. In that case:
-        - Do NOT fall back to training knowledge figures from an earlier year.
-        - If the source confirms the situation has changed (e.g. a 2025/2026 article says
-          country X now meets the threshold), treat that as the definitive current state.
-        - Only use training knowledge if ALL provided sources are older than 2 years OR
-          contain no date information at all.
-        
         TEMPORAL TENSE RULE:
         If the claim uses present tense ("do not contribute", "is", "are") and does not
         specify a year, evaluate it against the MOST RECENT data available across all
@@ -285,7 +319,7 @@ def fact_check_single_claim(
         Respond with STRICT JSON:
         {
           "verdict": "true" | "false" | "uncertain",
-          "reason": "Show your structured reasoning here, including explicit numbers and calculations utilized.",
+          "reason": "EXACTLY 3 bullet points, each ≤ 15 words. Format: '• fact\n• fact\n• conclusion'. No preamble.",
           "sub_claims": [
             {"claim": "Brief description of sub-claim or component", "status": "true" | "false" | "uncertain"}
           ],
@@ -302,6 +336,17 @@ def fact_check_single_claim(
             * CAUSAL LINK (if present): whether A caused B
         - Do NOT collapse the whole claim into a single sub_claim that just restates it.
         - Even a "simple" claim has at least 2 components: the subject fact and the specific assertion.
+
+        REASON FIELD — STRICT FORMAT (violations will be rejected):
+        • Write EXACTLY 3 bullet points starting with •
+        • Each bullet: one sentence, 15 words MAXIMUM
+        • No verbose intro like "The claim is evaluated..." — start bullet 1 immediately
+        • Inline source citation allowed only as (Source N) at end of bullet
+        • Bullet 3 MUST be the verdict conclusion sentence
+        Example of CORRECT format:
+        • Astronauts confirm the Great Wall is invisible to the naked eye from orbit. (Source 2)
+        • ESA retracted its claim; the image was a river, not the wall. (Source 3)
+        • The claim that the wall is visible from space is false.
         """
     ).strip()
 
@@ -336,21 +381,21 @@ def fact_check_single_claim(
         temperature=1.0,
         top_p=1.0,
         max_tokens=4096,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort="medium",
     )
     raw = resp.choices[0].message.content
     end_time = time.time()
 
-    # High-reasoning Cerebras models sometimes return content=None and put
-    # the answer in reasoning_content instead. Fall back to that field.
+    # Cerebras models sometimes return content=None and put
+    # the answer in the `reasoning` field instead. Fall back to that field.
     if not raw:
-        raw = getattr(resp.choices[0].message, "reasoning_content", None) or ""
+        raw = getattr(resp.choices[0].message, "reasoning", None) or ""
         if raw:
-            print("[Parser] content was None — using reasoning_content fallback.")
+            print("[Parser] content was None — using reasoning field fallback.")
 
     if not raw:
         raw = "{}"  # Empty JSON — will fall through to stage-4 keyword scan
-        print("[Parser] Both content and reasoning_content are empty.")
+        print("[Parser] Both content and reasoning are empty.")
 
     raw = _strip_json_fences(raw)
 
@@ -427,6 +472,18 @@ def fact_check_single_claim(
     if verdict not in {"true", "false", "uncertain"}:
         verdict = "uncertain"
 
+    # If reason is empty but the model provided internal reasoning,
+    # use that as the displayed reason (Cerebras sometimes puts detailed
+    # thinking in the `reasoning` field and returns a minimal JSON).
+    if not data.get("reason"):
+        try:
+            rc = getattr(resp.choices[0].message, "reasoning", None)
+            if rc:
+                data["reason"] = rc
+                print("[Parser] reason was empty — using reasoning field as displayed reason.")
+        except Exception:
+            pass
+
     top_sources = data.get("top_sources") or []
     if not isinstance(top_sources, list):
         top_sources = [str(top_sources)]
@@ -492,15 +549,13 @@ def fact_check_text(
     model: str,
     max_claims: int = 6,
     mode: str = "one-shot",
-    num_sources: int = 6,
-    reasoning_effort: str = "medium",
+    num_sources: int = 5,
 ) -> list[dict[str, Any]]:
     claims = extract_claims_from_text(
         cerebras_client,
         text=text,
         model=model,
         max_claims=max_claims,
-        reasoning_effort=reasoning_effort,
     )
 
     print(f"Extracted {len(claims)} claims:")
@@ -518,7 +573,6 @@ def fact_check_text(
                 model=model,
                 mode=mode,
                 num_sources=num_sources,
-                reasoning_effort=reasoning_effort,
             )
         )
         print(f"{'=' * 50}")
@@ -607,7 +661,6 @@ def main(argv: list[str] | None = None) -> int:
                 max_claims=min(int(args.max_claims), len(claims)),
                 mode=args.mode,
                 num_sources=int(args.num_sources),
-                reasoning_effort=args.reasoning_effort,
             )
             return 0
 
@@ -620,7 +673,6 @@ def main(argv: list[str] | None = None) -> int:
                 max_claims=int(args.max_claims),
                 mode=args.mode,
                 num_sources=int(args.num_sources),
-                reasoning_effort=args.reasoning_effort,
             )
             return 0
 
@@ -632,7 +684,6 @@ def main(argv: list[str] | None = None) -> int:
             model=model,
             mode=args.mode,
             num_sources=int(args.num_sources),
-            reasoning_effort=args.reasoning_effort,
         )
         return 0
     except Exception as e:

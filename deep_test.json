@@ -1,0 +1,50 @@
+{
+  "claim": "At the beginning of the 20th century, the textile industry of the Vosges and the Cevennes regions, in France, declined due to the increasing import of cheaper textile from Asia.",
+  "elapsed_seconds": 11.13,
+  "model": "gpt-oss-120b",
+  "reason": "**Step\u202f1 \u2013 Claim type & verification elements:** The claim is a **causal** statement tied to a **temporal** period (early 20th\u202fcentury). To verify it we need: (1) evidence that the textile industry in the Vosges and Cevennes regions was in decline around 1900\u20111910, and (2) evidence that imports of cheaper Asian textiles were increasing at that time and that they were identified as the cause of the decline.\\n\\n**Step\u202f1 \u2013 Evidence triage:**\\n- **Source\u202f2** discusses Asian cotton imports into France but gives no data on the timing of those imports, their price relative to domestic textiles, nor any link to the Vosges or Cevennes textile sector.\\n- **Source\u202f5** examines 19th\u2011century \u201cguin\u00e9es\u201d cloth in the French empire and does not address the early\u201120th\u2011century situation of the Vosges or Cevennes.\\n- **Sources\u202f1,\u202f3,\u202f4** are unrelated (inter\u2011war Asian trade collapse, early\u2011modern Indian cotton, generic Britannica placeholder) and contain no relevant facts.\\nNo source provides explicit figures on regional production trends, import volumes from Asia in the 1900\u20111910 period, or a causal analysis linking the two.\\nThus the provided evidence is **insufficient** to confirm or refute the claim directly.\\n\\n**Step\u202f2 \u2013 Training\u2011knowledge assessment (historical record \u2013 not in provided sources):**\\n- Historical studies of French regional industry note that the Vosges and Cevennes textile sectors, based on wool and modest cotton processing, peaked in the late\u201119th\u202fcentury and began to contract after World\u202fI (1914\u20111918) due to war\u2011related disruption, loss of export markets, and competition from larger, mechanised mills in northern France and abroad. (This supports sub\u2011claim\u202f1.)\\n- Import of cheap Asian textiles into France was **minimal before the 1920s**; substantial Asian competition (first Japanese, later Chinese) only became noticeable after World\u202fII, especially from the 1950s onward. Early\u201120th\u2011century French trade statistics show Asian textile imports representing a tiny fraction of total textile imports, far too small to drive a regional industrial decline.\\n- Consequently, the dominant causes cited by historians for the early\u201120th\u2011century downturn in the Vosges and Cevennes are wartime losses, structural shifts in the French textile market, and competition from European producers, not Asian imports.\\nBecause the causal link asserted in the claim is not supported by the historical record, the overall claim is **false**.\\n\\n**Step\u202f3 \u2013 Verdict:** The claim is false.\\n\\n**Sub\u2011claims:**\\n1. \"The Vosges and Cevennes textile sector declined in the early 20th century.\" \u2013 **true** (historical decline documented).\\n2. \"The decline was caused by rising imports of cheaper Asian textiles.\" \u2013 **false** (Asian imports were negligible then; decline had other causes).\\n",
+  "reset_at_utc": "2026-02-24T00:00:00Z",
+  "search_sources": [
+    {
+      "quality_tier": "Government",
+      "title": "\n            Four great Asian trade collapses - PMC\n        ",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8362164/"
+    },
+    {
+      "quality_tier": "Educational",
+      "title": "Troublesome Textiles: Asian cottons in France",
+      "url": "https://warwick.ac.uk/fac/arts/history/ghcc/eac/events/upcoming_events/goodsfromtheeast/programme/venice_paper_-_troublesome_textiles.pdf"
+    },
+    {
+      "quality_tier": "Educational",
+      "title": "The French Connection: Indian Cottons, Their Early Modern Technology and Diffusion",
+      "url": "https://www.lse.ac.uk/Economic-History/Assets/Documents/Research/GEHN/Helsinki/HELSINKISouza.pdf"
+    },
+    {
+      "quality_tier": "Trusted Org",
+      "title": "Encyclopedia Britannica | Britannica",
+      "url": "http://britannica.com"
+    },
+    {
+      "quality_tier": "Trusted Org",
+      "title": " Guin\u00e9e Cloth: Linked Transformations within France's Empire in the Nineteenth Century (\u00c0 propos des \u00e9toffes dites \"guin\u00e9es\": transformations li\u00e9es \u00e0 la production dans l'empire fran\u00e7ais au cours du XIXe si\u00e8cle) on JSTOR ",
+      "url": "https://www.jstor.org/stable/4392412"
+    }
+  ],
+  "sources": [
+    "https://warwick.ac.uk/fac/arts/history/ghcc/eac/events/upcoming_events/goodsfromtheeast/programme/venice_paper_-_troublesome_textiles.pdf",
+    "https://www.jstor.org/stable/4392412"
+  ],
+  "sub_claims": [
+    {
+      "claim": "The Vosges and Cevennes textile sector declined in the early 20th century.",
+      "status": "true"
+    },
+    {
+      "claim": "The decline was caused by rising imports of cheaper Asian textiles.",
+      "status": "false"
+    }
+  ],
+  "timestamp": "2026-02-22T20:21:33.455649",
+  "verdict": "false"
+}

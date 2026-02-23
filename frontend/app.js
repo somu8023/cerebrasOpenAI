@@ -38,28 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSuperuser();
     initButtonClickAnim();
     loadFromURL();
-    initSegGliders();
 });
-
-function initSegGliders() {
-    // Place glider on each pill's default active button without animation
-    Object.keys(_SEG_IDS).forEach(wrapId => {
-        const wrap = _origGetElementById(wrapId);
-        if (!wrap) return;
-        const activeBtn = wrap.querySelector('.seg-btn.active');
-        if (!activeBtn) return;
-        const glider = document.createElement('div');
-        glider.className = 'seg-glider';
-        glider.style.transition = 'none';
-        wrap.insertBefore(glider, wrap.querySelector('.seg-btn'));
-        const wrapRect = wrap.getBoundingClientRect();
-        const btnRect  = activeBtn.getBoundingClientRect();
-        glider.style.left  = (btnRect.left - wrapRect.left) + 'px';
-        glider.style.width = btnRect.width + 'px';
-        // Re-enable transition after first frame
-        requestAnimationFrame(() => { glider.style.transition = ''; });
-    });
-}
 
 /* ============================================================
    GOLD PARTICLE CANVAS
@@ -521,8 +500,6 @@ async function handleFactCheck() {
         return;
     }
 
-    const reasoningEffort = $('reasoningEffort')?.value || 'medium';
-    const numSources = parseInt($('numSources')?.value || '3');
     triggerHaptic('medium');
     setLoading('checkBtn', true);
     showEmptyState(true);
@@ -546,7 +523,7 @@ async function handleFactCheck() {
                 'X-Local-Used': localStorage.getItem('fc_used') || '0',
                 ...(isSuperuser ? { 'X-Superuser': 'cerebras2024' } : {})
             },
-            body: JSON.stringify({ claim, reasoning_effort: reasoningEffort, num_sources: numSources })
+            body: JSON.stringify({ claim })
         });
 
         setProgress(80);
@@ -631,8 +608,6 @@ async function handleTextAnalysis() {
     }
 
     const maxClaims = parseInt($('maxClaims')?.value || '6');
-    const numSources = parseInt($('textNumSources')?.value || '3');
-    const reasoningEffort = $('textReasoningEffort')?.value || 'medium';
 
     setLoading('analyzeBtn', true);
     showEmptyState(true);
@@ -657,9 +632,7 @@ async function handleTextAnalysis() {
             },
             body: JSON.stringify({
                 text,
-                max_claims: maxClaims,
-                num_sources: numSources,
-                reasoning_effort: reasoningEffort
+                max_claims: maxClaims
             })
         });
 
@@ -714,7 +687,7 @@ async function handleTextAnalysis() {
 /* ── Cube processing animation ── */
 function setCubeProcessing(active, statusText) {
     const emptyState = document.getElementById('emptyState');
-    const statusEl   = document.getElementById('processingStatus');
+    const statusEl = document.getElementById('processingStatus');
     if (emptyState) {
         if (active) {
             emptyState.classList.add('is-processing');
@@ -725,8 +698,8 @@ function setCubeProcessing(active, statusText) {
         }
     }
     // Mobile hex loader
-    const mobLoader  = document.getElementById('mobileHexLoader');
-    const mobStatus  = document.getElementById('mobileProcessingStatus');
+    const mobLoader = document.getElementById('mobileHexLoader');
+    const mobStatus = document.getElementById('mobileProcessingStatus');
     if (mobLoader) {
         mobLoader.style.display = active ? 'flex' : 'none';
         if (mobStatus) mobStatus.textContent = statusText || '';
@@ -753,55 +726,79 @@ function setCubeStatus(text) {
 function formatReasoning(text) {
     if (!text) return '';
 
-    // Strip leaked output lines — already shown in UI
+    // ── 1. Strip noise already shown elsewhere in UI ──────────────────────────
     text = text.replace(/\n?\**Verdict\**:\s*\w+\.?\s*$/im, '');
     text = text.replace(/\n?Sub-?claims?\s+evaluated?:?[\s\S]*$/im, '');
-    text = text.replace(/\n?\[Training knowledge[^\]]*\]/gi, ' <em style="color:var(--text-tertiary);font-size:0.78rem">[training knowledge]</em>');
+    text = text.replace(/\n?\[(Training knowledge|Based on historical record)[^\]]*\]/gi,
+        ' <em class="reasoning-training">[training knowledge]</em>');
+    text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, ''); // strip bare URLs
     text = text.trim();
 
-    // Strip bare URLs in parens — sources shown in the Sources tab
-    text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
+    // ── 2. Split into logical lines on newlines or sentence boundaries ────────
+    // First honour explicit newlines, then split long prose sentences.
+    const rawLines = text.split(/\n/);
+    const lines = [];
+    for (const raw of rawLines) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
 
-    // Escape HTML
-    let f = escHtml(text);
+        // If line is a section header (short, ends with colon) — keep as-is
+        if (/^[A-Z][^:]{0,60}:\s*$/.test(trimmed)) {
+            lines.push({ type: 'header', text: trimmed });
+            continue;
+        }
 
-    // Section headers: lines like "Claim type", "Evidence for (1)", "Evidence Triage", etc.
-    // Match a short line (≤60 chars) ending with a colon at a line boundary
-    f = f.replace(/(^|<br>)([^<\n]{1,60}:)(?=\s*<br>|$)/g,
-        (_, pre, header) => `${pre}<span class="reasoning-label">${header}</span>`);
+        // If line starts with a bullet/numbered list marker — keep as-is
+        if (/^[-*•]\s+/.test(trimmed) || /^\d+[.)]\s+/.test(trimmed)) {
+            lines.push({ type: 'bullet', text: trimmed.replace(/^[-*•]\s+/, '').replace(/^\d+[.)]\s+/, '') });
+            continue;
+        }
 
-    // Bold **text**
-    f = f.replace(/\*\*(.*?)\*\*/g, '<strong class="reasoning-strong">$1</strong>');
+        // Otherwise split prose into individual sentences for readability
+        // (split after . ! ? followed by space + capital, but keep abbreviations whole)
+        const sentences = trimmed.split(/(?<=[.!?])\s+(?=[A-Z"'(])/);
+        for (const s of sentences) {
+            if (s.trim()) lines.push({ type: 'prose', text: s.trim() });
+        }
+    }
 
-    // Newlines → breaks
-    f = f.replace(/\n/g, '<br>');
+    // ── 3. Render each line type ──────────────────────────────────────────────
+    const parts = lines.map(line => {
+        const safe = escHtml(line.text)
+            // Bold **text**
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="reasoning-strong">$1</strong>')
+            // Source N references like "Source 1", "Source 3"
+            .replace(/\b(Source\s+\d+)\b/g, '<span class="reasoning-src-ref">$1</span>');
 
-    // Bullet: asterisk or dash at line start
-    f = f.replace(/(?:^|<br>)[*\-]\s+/g, '<br><span class="reasoning-bullet">&bull;</span> ');
+        if (line.type === 'header') {
+            return `<div class="reasoning-section-header">${safe}</div>`;
+        }
+        if (line.type === 'bullet') {
+            return `<div class="reasoning-item"><span class="reasoning-bullet">&#8250;</span><span>${safe}</span></div>`;
+        }
+        // prose sentence
+        return `<div class="reasoning-item"><span class="reasoning-bullet">&#8250;</span><span>${safe}</span></div>`;
+    });
 
-    // Numbered list items
-    f = f.replace(/(?:^|<br>)(\d+\.)\s+/g,
-        (_, num) => `<br><span class="reasoning-num">${num}</span> `);
-
-    // Clean up stacked breaks
-    f = f.replace(/(<br>\s*){3,}/g, '<br><br>');
-    f = f.replace(/^(<br>\s*)+/, '');
-
-    return f;
+    return parts.join('');
 }
+
 
 function renderSubClaims(subClaims) {
     if (!subClaims || !subClaims.length) return '';
     const rows = subClaims.map(sc => {
         const st = (sc.status || 'uncertain').toLowerCase();
         const icon = st === 'true' ? '✓' : st === 'false' ? '✕' : '?';
-        const cls  = st === 'true' ? 'sc-true' : st === 'false' ? 'sc-false' : 'sc-uncertain';
+        const cls = st === 'true' ? 'sc-true' : st === 'false' ? 'sc-false' : 'sc-uncertain';
         return `<div class="sub-claim-row ${cls}">
             <span class="sc-icon">${icon}</span>
             <span class="sc-text">${escHtml(sc.claim || '')}</span>
         </div>`;
     }).join('');
-    return `<div class="sub-claims-list">${rows}</div>`;
+    return `<div class="sub-claims-list">
+        <div class="sub-claims-label">Claim broken into verifiable parts</div>
+        ${rows}
+    </div>`;
 }
 
 function renderResultCard(data, claim) {
@@ -837,6 +834,21 @@ function renderResultCard(data, claim) {
                 <button class="result-icon-btn" onclick="shareResult(this)" title="Share link">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 </button>
+                <div class="dl-wrap">
+                    <button class="result-icon-btn" onclick="toggleDlMenu(this)" title="Download report">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
+                    <div class="dl-menu">
+                        <button class="dl-menu-item" onclick="downloadResult(this,'pdf')">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            PDF
+                        </button>
+                        <button class="dl-menu-item" onclick="downloadResult(this,'word')">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="16" y1="21" x2="8" y2="21"/></svg>
+                            Word (.doc)
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -914,7 +926,7 @@ function copyResult(btn) {
     const verdictLabel = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
 
     let sources = [];
-    try { sources = JSON.parse(card.dataset.sources || '[]'); } catch {}
+    try { sources = JSON.parse(card.dataset.sources || '[]'); } catch { }
 
     // ── Plain text version ──────────────────────────────────
     const divider = '─'.repeat(48);
@@ -953,9 +965,9 @@ function copyResult(btn) {
     // ── Write both formats to clipboard ─────────────────────
     const doCopy = (typeof ClipboardItem !== 'undefined')
         ? navigator.clipboard.write([new ClipboardItem({
-            'text/html':  new Blob([fullHtml], { type: 'text/html' }),
+            'text/html': new Blob([fullHtml], { type: 'text/html' }),
             'text/plain': new Blob([plainText], { type: 'text/plain' }),
-          })])
+        })])
         : navigator.clipboard.writeText(plainText);
 
     doCopy.then(() => {
@@ -985,6 +997,192 @@ function shareResult(btn) {
         }, 2000);
         showToast('🔗 Link copied to clipboard');
     }).catch(() => showToast('Could not copy link'));
+}
+
+/* ============================================================
+   DOWNLOAD (PDF / WORD)
+   ============================================================ */
+function closeAllDlMenus() {
+    document.querySelectorAll('.dl-menu.open').forEach(menu => {
+        menu.classList.remove('open');
+        if (menu._closeListener) {
+            document.removeEventListener('click', menu._closeListener);
+            menu._closeListener = null;
+        }
+    });
+}
+
+function toggleDlMenu(btn) {
+    const menu = btn.nextElementSibling;
+    const isOpen = menu.classList.contains('open');
+
+    closeAllDlMenus();
+
+    if (!isOpen) {
+        menu.classList.add('open');
+        menu._closeListener = function closeDl(e) {
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                closeAllDlMenus();
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', menu._closeListener);
+        }, 0);
+    }
+}
+
+function downloadResult(btn, format) {
+    const card = btn.closest('.result-card');
+    const claim = card.dataset.claim || '';
+    const verdict = card.dataset.verdict || '';
+    const reasoning = card.dataset.reasoning || '';
+    const sources = (() => { try { return JSON.parse(card.dataset.sources || '[]'); } catch { return []; } })();
+    closeAllDlMenus();
+    const slug = claim.slice(0, 30).replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'factcheck';
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    if (format === 'pdf') _dlPdf(claim, verdict, reasoning, sources, slug, date);
+    else _dlWord(claim, verdict, reasoning, sources, slug, date);
+}
+
+function _dlPdf(claim, verdict, reasoning, sources, slug, date) {
+    if (!window.jspdf) { showToast('PDF library not loaded yet — try again in a moment'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentW = pageW - margin * 2;
+    let y = 20;
+
+    const addText = (text, opts = {}) => {
+        const { size = 10, bold = false, color = [200, 200, 200], maxW = contentW, indentX = 0, lineIndent = 0 } = opts;
+        // Clean any stray newlines from scraped source text which breaks jsPDF's splitTextToSize
+        text = String(text).replace(/\s+/g, ' ');
+        doc.setFontSize(size);
+        doc.setFont('helvetica', bold ? 'bold' : 'normal');
+        doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(text, maxW - indentX - lineIndent);
+        lines.forEach((line, i) => {
+            if (y > pageH - 15) { doc.addPage(); doc.setFillColor(255, 255, 255); doc.rect(0, 0, pageW, pageH, 'F'); y = 20; }
+            doc.text(line.trimEnd(), margin + indentX + (i > 0 ? lineIndent : 0), y);
+            y += size * 0.45;
+        });
+        y += 2;
+    };
+    const addRule = () => {
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, y, pageW - margin, y);
+        y += 5;
+    };
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageW, pageH, 'F');
+
+    addText('Fact-Check Report', { size: 18, bold: true, color: [146, 104, 10] }); // Darker gold for white bg
+    addText(date, { size: 8, color: [120, 120, 120] });
+    y += 3; addRule();
+
+    addText('CLAIM', { size: 8, bold: true, color: [146, 104, 10] });
+    addText(claim, { size: 11, color: [40, 40, 40] });
+    y += 2;
+
+    const vColor = verdict === 'TRUE' ? [22, 163, 74] : verdict === 'FALSE' ? [220, 38, 38] : [217, 119, 6]; // Darker vibrant colors
+    addText('VERDICT', { size: 8, bold: true, color: [146, 104, 10] });
+    addText(verdict, { size: 14, bold: true, color: vColor });
+    y += 2; addRule();
+
+    if (reasoning) {
+        addText('REASONING', { size: 8, bold: true, color: [146, 104, 10] });
+        y += 1;
+
+        const lines = reasoning.split('\n');
+        lines.forEach(line => {
+            let t = line.trim()
+                .replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
+                .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '[training knowledge]')
+                .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
+            if (!t) return;
+
+            if (t.startsWith('•') || t.startsWith('-')) {
+                // Draw gold chevron manually to match UI
+                doc.setFontSize(9);
+                doc.setTextColor(146, 104, 10);
+                doc.text('›', margin, y);
+                // Draw wrapped text cleanly indented
+                addText(t.substring(1).trim(), { size: 9, color: [60, 60, 60], indentX: 4 });
+            } else {
+                addText(t, { size: 9, color: [60, 60, 60] });
+            }
+        });
+        y += 2;
+    }
+
+    if (sources.length) {
+        addRule();
+        addText('SOURCES', { size: 8, bold: true, color: [146, 104, 10] });
+        sources.forEach((s, i) => {
+            addText(`${i + 1}. ${s.title || s.url || ''}`, { size: 8, bold: true, color: [40, 40, 40] });
+            if (s.url) addText(s.url, { size: 7, color: [59, 111, 196] }); // Clear blue link
+        });
+    }
+
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text('Generated by Cerebras FactCheck', margin, pageH - 8);
+    doc.save(`factcheck-${slug}.pdf`);
+}
+
+function _dlWord(claim, verdict, reasoning, sources, slug, date) {
+    const vColor = verdict === 'TRUE' ? '#16a34a' : verdict === 'FALSE' ? '#dc2626' : '#d97706';
+    const cleanReasoning = (reasoning || '').split('\n')
+        .map(line => {
+            let t = line.trim()
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/\*(.*?)\*/g, '<i>$1</i>')
+                .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '<em style="color:#888">[training knowledge]</em>')
+                .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '')
+                .replace(/\b(Source\s+\d+)\b/g, '<span style="background:#fdf8ec;border:1px solid #e0c588;color:#92680a;padding:1px 5px;border-radius:8px;font-size:8pt;font-weight:bold">$1</span>');
+
+            if (!t) return '';
+            if (t.startsWith('•') || t.startsWith('-')) {
+                return `<div style="margin-top:6px; margin-bottom:6px; padding-left:14px; text-indent:-10px;">&bull; &nbsp; ${t.substring(1).trim()}</div>`;
+            }
+            return `<div style="margin-top:6px; margin-bottom:6px;">${t}</div>`;
+        }).join('');
+    const sourcesHtml = sources.length
+        ? sources.map((s, i) => `<p style="margin:6px 0;font-size:10pt"><b>${i + 1}. ${s.title || s.url || ''}</b>${s.url ? `<br><span style="color:#3b6fc4;font-size:9pt">${s.url}</span>` : ''}</p>`).join('')
+        : '';
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Fact-Check Report</title>
+<style>
+  body{font-family:Calibri,sans-serif;font-size:11pt;color:#222;margin:50px}
+  h1{font-size:22pt;color:#92680a;margin-bottom:4px}
+  .lbl{font-size:9pt;color:#92680a;text-transform:uppercase;letter-spacing:1px;font-weight:bold;margin:18px 0 4px}
+  .claim-box{background:#fdf8ec;border-left:4px solid #d4a853;padding:10px 16px;margin:6px 0;font-size:12pt}
+  .verdict{font-size:20pt;font-weight:bold;color:${vColor}}
+  hr{border:none;border-top:1px solid #ddd;margin:14px 0}
+  .date{font-size:9pt;color:#999}
+  .reasoning{font-size:10.5pt;color:#333;line-height:1.7}
+  .footer{font-size:8pt;color:#bbb;margin-top:30px}
+</style></head>
+<body>
+<h1>Fact-Check Report</h1>
+<p class="date">${date}</p><hr>
+<p class="lbl">Claim</p>
+<div class="claim-box">${claim}</div>
+<p class="lbl">Verdict</p>
+<p class="verdict">${verdict}</p>
+<hr>
+${reasoning ? `<p class="lbl">Reasoning</p><div class="reasoning">${cleanReasoning}</div><hr>` : ''}
+${sources.length ? `<p class="lbl">Sources</p>${sourcesHtml}<hr>` : ''}
+<p class="footer">Generated by Cerebras FactCheck</p>
+</body></html>`;
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `factcheck-${slug}.doc`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 function loadFromURL() {
@@ -1024,6 +1222,7 @@ function renderSource(s, i, citedUrls = new Set()) {
 
     return `
     <div class="source-item" style="animation-delay:${i * 0.06}s">
+        <div class="source-num" title="Source ${i + 1}">${i + 1}</div>
         <div class="source-tier ${tierClass}">${escHtml(rawTier)}</div>
         <div class="source-info">
             <div class="source-title">${escHtml(title)}</div>
@@ -1234,16 +1433,22 @@ function addToHistory(claim, verdict, data) {
 }
 
 function loadHistory() {
-    // Update navbar badge
-    const btn = $('navHistoryBtn');
-    const countEl = $('navHistoryCount');
-    if (btn) {
+    // Update BOTH desktop and mobile history buttons independently.
+    // We bypass the $ override (which picks only one) by using the raw helper.
+    const desktopBtn = _origGetElementById('navHistoryBtn');
+    const desktopCount = _origGetElementById('navHistoryCount');
+    const mobileBtn = _origGetElementById('navHistoryBtnMobile');
+    const mobileCount = _origGetElementById('navHistoryCountMobile');
+
+    [desktopBtn, mobileBtn].forEach(btn => {
+        if (!btn) return;
         btn.style.display = checkHistory.length ? '' : 'none';
-        if (countEl) countEl.textContent = checkHistory.length;
-    }
+    });
+    if (desktopCount) desktopCount.textContent = checkHistory.length;
+    if (mobileCount) mobileCount.textContent = checkHistory.length;
 
     // Populate drawer list
-    const list = $('drawerHistoryList');
+    const list = _origGetElementById('drawerHistoryList');
     if (!list) return;
 
     if (!checkHistory.length) {
@@ -1278,17 +1483,24 @@ function loadHistory() {
             setExample(entry.claim);
             closeHistoryDrawer();
             if (entry && entry.data) {
-                const resultArea = $('resultArea');
+                // Pick the correct result container for the current viewport
+                const isMobile = window.innerWidth <= 900;
+                const resultArea = isMobile
+                    ? _origGetElementById('resultAreaMobile')
+                    : _origGetElementById('resultArea');
+
                 if (resultArea) {
                     showEmptyState(false);
                     resultArea.innerHTML = renderResultCard(entry.data, entry.claim);
                     showResultsClear(true);
-                    // On mobile: hide input form and scroll results into view
-                    if (window.innerWidth <= 900) {
+
+                    // On mobile: hide input form, scroll results into view
+                    if (isMobile) {
                         toggleMobileInputs(false);
                         resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-                    // Inject cached-result disclaimer
+
+                    // Inject cached-result disclaimer banner
                     const card = resultArea.querySelector('.result-card');
                     if (card) {
                         const age = getTimeAgo(entry.time);
@@ -1305,6 +1517,7 @@ function loadHistory() {
         }
     };
 }
+
 
 function openHistoryDrawer() {
     const drawer = $('historyDrawer');
@@ -1337,61 +1550,7 @@ function getTimeAgo(ts) {
     return `${Math.floor(hrs / 24)}d ago`;
 }
 
-/* ============================================================
-   SEGMENTED PILL CONTROL
-   ============================================================ */
-const _SEG_MAP = {
-    quick:    { reasoning: 'low',    sources: '3' },
-    standard: { reasoning: 'medium', sources: '5' },
-    deep:     { reasoning: 'high',   sources: '8' },
-};
-
-const _SEG_IDS = {
-    segPillSingle:       { r: 'reasoningEffort',           s: 'numSources' },
-    segPillText:         { r: 'textReasoningEffort',       s: 'textNumSources' },
-    segPillSingleMobile: { r: 'reasoningEffortMobile',     s: 'numSourcesMobile' },
-    segPillTextMobile:   { r: 'textReasoningEffortMobile', s: 'textNumSourcesMobile' },
-};
-
-function selectSegment(wrapId, seg) {
-    const vals = _SEG_MAP[seg];
-    const ids  = _SEG_IDS[wrapId];
-    if (!vals || !ids) return;
-
-    const rEl = _origGetElementById(ids.r);
-    const sEl = _origGetElementById(ids.s);
-    if (rEl) rEl.value = vals.reasoning;
-    if (sEl) sEl.value = vals.sources;
-
-    const wrap = _origGetElementById(wrapId);
-    if (!wrap) return;
-
-    // Update active class
-    let activeBtn = null;
-    wrap.querySelectorAll('.seg-btn').forEach(btn => {
-        const isActive = btn.dataset.seg === seg;
-        btn.classList.toggle('active', isActive);
-        if (isActive) activeBtn = btn;
-    });
-
-    // Move glider
-    if (activeBtn) {
-        let glider = wrap.querySelector('.seg-glider');
-        if (!glider) {
-            glider = document.createElement('div');
-            glider.className = 'seg-glider';
-            // Insert before first button so it's behind them
-            wrap.insertBefore(glider, wrap.querySelector('.seg-btn'));
-            // Disable transition on first paint
-            glider.style.transition = 'none';
-            requestAnimationFrame(() => { glider.style.transition = ''; });
-        }
-        const wrapRect = wrap.getBoundingClientRect();
-        const btnRect  = activeBtn.getBoundingClientRect();
-        glider.style.left  = (btnRect.left - wrapRect.left) + 'px';
-        glider.style.width = btnRect.width + 'px';
-    }
-}
+/* Segmented pill control removed — single analysis mode (medium) */
 
 /* ============================================================
    CUSTOM DROPDOWN LOGIC

@@ -1,0 +1,43 @@
+{
+  "claim": "At the beginning of the 20th century, the textile industry of the Vosges and the Cevennes regions, in France, declined due to the increasing import of cheaper textile from Asia.",
+  "verdict": "uncertain",
+  "reason": "\u2022 Sources give no data on Vosges or Cevennes textile decline. (Source 2)\n\u2022 No source connects Asian imports to a French regional downturn. (Source 4)\n\u2022 Lacking relevant evidence, the claim cannot be verified.",
+  "sub_claims": [
+    {
+      "claim": "The Vosges and Cevennes textile industry declined at the start of the 20th century",
+      "status": "uncertain"
+    },
+    {
+      "claim": "The decline was caused by increasing imports of cheaper Asian textiles",
+      "status": "uncertain"
+    }
+  ],
+  "sources": [],
+  "search_sources": [
+    {
+      "url": "https://museum.gwu.edu/cotsen-textile-traces-study-collection",
+      "title": "Cotsen Textile Traces Study Collection | The George Washington University Museum and The Textile Museum | The George Washington University",
+      "quality_tier": "Educational"
+    },
+    {
+      "url": "https://www.academia.edu/12790177/The_decline_of_French_trade_power_during_the_first_globalization_1850_1913_",
+      "title": "(PDF) The decline of French trade power during the first globalization (1850-1913)",
+      "quality_tier": "Educational"
+    },
+    {
+      "url": "https://www.academia.edu/110125960/The_Heritage_of_the_Textile_Industry",
+      "title": "(PDF) The Heritage of the Textile Industry - Academia.edu",
+      "quality_tier": "Educational"
+    },
+    {
+      "url": "https://www.lse.ac.uk/Economic-History/Assets/Documents/Research/GEHN/GEHNConferences/conf5/Clarence-SmithGEHN5.pdf",
+      "title": "[PDF] The cotton textile industries of Southeast Asia and 'Bantu' Africa - LSE",
+      "quality_tier": "Educational"
+    },
+    {
+      "url": "http://britannica.com",
+      "title": "Encyclopedia Britannica | Britannica",
+      "quality_tier": "Trusted Org"
+    }
+  ]
+}

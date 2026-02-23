@@ -1,0 +1,25 @@
+
+Fact-checking claim: At the beginning of the 20th century, the textile industry of the Vosges and the Cevennes regions, in France, declined due to the increasing import of cheaper textile from Asia.
+[Locale] historical/regional claim (['trade'] also detected) ù using French archival sources instead of international stat databases
+[Search] Detected topics: ['trade', 'history'] -> boosting domains: ['britannica.com', 'jstor.org', 'gallica.bnf.fr', 'archives-nationales.culture.gouv.fr']
+[Recency floor] Injected freshest source: https://jhna.org/articles/textile-circulation-dutch-global-market/
+
+================================================================================
+PAYLOAD BEING SENT TO CEREBRAS API:
+================================================================================
+--- SYSTEM PROMPT ---
+ERROR: 'charmap' codec can't encode character '\u2192' in position 2782: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\singh\cerebrasOpenAI\run_factcheck.py", line 17, in <module>
+    result = fact_check_single_claim(
+        cerebras_client,
+    ...<3 lines>...
+        num_sources=6,
+    )
+  File "C:\Users\singh\cerebrasOpenAI\cerebras_fact_checker\factcheck.py", line 309, in fact_check_single_claim
+    print(system_prompt_content)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\singh\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 2782: character maps to <undefined>

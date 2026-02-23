@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cerebras FactCheck — AI-Powered Verification</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23ffffff'/><polygon points='16,2.5 27.3,9 27.3,23 16,29.5 4.7,23 4.7,9' fill='%230d0f18' stroke='none'/><line x1='16' y1='16' x2='16' y2='2.5' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='27.3' y2='9' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='27.3' y2='23' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='16' y2='29.5' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='4.7' y2='23' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='4.7' y2='9' stroke='%23d4a853' stroke-width='1'/><polygon points='16,2.5 27.3,9 27.3,23 16,29.5 4.7,23 4.7,9' fill='none' stroke='%23d4a853' stroke-width='1.6'/><circle cx='16' cy='16' r='2.2' fill='%23d4a853'/></svg>">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23ffffff'/><polygon points='16,2.5 27.3,9 27.3,23 16,29.5 4.7,23 4.7,9' fill='%230d0f18' stroke='none'/><line x1='16' y1='16' x2='16' y2='2.5' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='27.3' y2='9' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='27.3' y2='23' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='16' y2='29.5' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='4.7' y2='23' stroke='%23d4a853' stroke-width='1'/><line x1='16' y1='16' x2='4.7' y2='9' stroke='%23d4a853' stroke-width='1'/><polygon points='16,2.5 27.3,9 27.3,23 16,29.5 4.7,23 4.7,9' fill='none' stroke='%23d4a853' stroke-width='1.6'/><circle cx='16' cy='16' r='2.2' fill='%23d4a853'/></svg>">
     <meta name="description"
         content="Verify claims instantly using Cerebras AI and authoritative web sources. Get verdicts with evidence-backed reasoning.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -66,8 +67,13 @@
                 </div>
 
                 <div class="nav-right">
-                    <button class="nav-history-btn" id="navHistoryBtn" onclick="openHistoryDrawer()" title="Recent Checks" style="display:none;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <button class="nav-history-btn" id="navHistoryBtn" onclick="openHistoryDrawer()"
+                        title="Recent Checks" style="display:none;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
                         <span>History</span>
                         <span class="nav-history-count" id="navHistoryCount">0</span>
                     </button>
@@ -134,15 +140,6 @@
                             <div class="char-counter" id="claimCounter">0 / 500</div>
                         </div>
 
-                        <label class="seg-pill-label">Analysis Depth</label>
-                        <div class="seg-pill-wrap" id="segPillSingle">
-                            <input type="hidden" id="reasoningEffort" value="medium">
-                            <input type="hidden" id="numSources" value="5">
-                            <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillSingle','quick')">Quick</button>
-                            <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillSingle','standard')">Standard</button>
-                            <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillSingle','deep')">Deep</button>
-                        </div>
-
                         <button id="checkBtn" class="btn-verify" onclick="handleFactCheck()">
                             <span class="btn-icon">⬡</span>
                             <span class="btn-text">Verify Claim</span>
@@ -167,6 +164,9 @@
                                 <button class="example-chip"
                                     onclick="setExample('Python was created by Guido van Rossum in 1991.')">🐍 Python
                                     origins</button>
+                                <button class="example-chip"
+                                    onclick="setExample('A penny dropped from the Empire State Building can kill a person.')">🪙
+                                    Falling penny</button>
                             </div>
                         </div>
                     </div>
@@ -196,15 +196,7 @@
                             <div class="char-counter" id="textCounter">0 / 5,000</div>
                         </div>
 
-                        <label class="seg-pill-label">Analysis Depth</label>
-                        <div class="seg-pill-wrap" id="segPillText">
-                            <input type="hidden" id="textReasoningEffort" value="medium">
-                            <input type="hidden" id="textNumSources" value="5">
-                            <input type="hidden" id="maxClaims" value="6">
-                            <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillText','quick')">Quick</button>
-                            <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillText','standard')">Standard</button>
-                            <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillText','deep')">Deep</button>
-                        </div>
+                        <input type="hidden" id="maxClaims" value="6">
 
                         <button id="analyzeBtn" class="btn-verify" onclick="handleTextAnalysis()">
                             <span class="btn-icon">⬡</span>
@@ -236,17 +228,20 @@
                                 <span class="ring r2"></span>
                                 <span class="ring r3"></span>
                             </div>
-                            <svg id="emptyCube" width="72" height="72" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#emptyLg)" stroke-width="1.5" fill="none"/>
-                                <path d="M14 2V26" stroke="url(#emptyLg)" stroke-width="1" opacity="0.45"/>
-                                <path d="M2 8L26 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25"/>
-                                <path d="M26 8L2 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25"/>
-                                <circle cx="14" cy="14" r="3" fill="url(#emptyLg)" opacity="0.9"/>
+                            <svg id="emptyCube" width="72" height="72" viewBox="0 0 28 28" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#emptyLg)" stroke-width="1.5"
+                                    fill="none" />
+                                <path d="M14 2V26" stroke="url(#emptyLg)" stroke-width="1" opacity="0.45" />
+                                <path d="M2 8L26 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25" />
+                                <path d="M26 8L2 20" stroke="url(#emptyLg)" stroke-width="1" opacity="0.25" />
+                                <circle cx="14" cy="14" r="3" fill="url(#emptyLg)" opacity="0.9" />
                                 <defs>
-                                    <linearGradient id="emptyLg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                                        <stop offset="0%"   stop-color="#d4a853"/>
-                                        <stop offset="50%"  stop-color="#e8c878"/>
-                                        <stop offset="100%" stop-color="#b8922e"/>
+                                    <linearGradient id="emptyLg" x1="0" y1="0" x2="28" y2="28"
+                                        gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%" stop-color="#d4a853" />
+                                        <stop offset="50%" stop-color="#e8c878" />
+                                        <stop offset="100%" stop-color="#b8922e" />
                                     </linearGradient>
                                 </defs>
                             </svg>
@@ -293,8 +288,13 @@
                             class="brand-highlight">FactCheck</span></div>
                 </a>
                 <div id="usageBadgeMobile" class="mobile-usage-badge"></div>
-                <button class="nav-history-btn" id="navHistoryBtnMobile" onclick="openHistoryDrawer()" title="Recent Checks" style="display:none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <button class="nav-history-btn" id="navHistoryBtnMobile" onclick="openHistoryDrawer()"
+                    title="Recent Checks" style="display:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
                     <span>History</span>
                     <span class="nav-history-count" id="navHistoryCountMobile">0</span>
                 </button>
@@ -314,17 +314,19 @@
                         <span class="ring r2"></span>
                         <span class="ring r3"></span>
                     </div>
-                    <svg class="mob-hex-svg" width="70" height="70" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#mobHexLg)" stroke-width="1.5" fill="none"/>
-                        <path d="M14 2V26" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.45"/>
-                        <path d="M2 8L26 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25"/>
-                        <path d="M26 8L2 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25"/>
-                        <circle cx="14" cy="14" r="3" fill="url(#mobHexLg)" opacity="0.9"/>
+                    <svg class="mob-hex-svg" width="70" height="70" viewBox="0 0 28 28" fill="none"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2L2 8V20L14 26L26 20V8L14 2Z" stroke="url(#mobHexLg)" stroke-width="1.5"
+                            fill="none" />
+                        <path d="M14 2V26" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.45" />
+                        <path d="M2 8L26 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25" />
+                        <path d="M26 8L2 20" stroke="url(#mobHexLg)" stroke-width="1" opacity="0.25" />
+                        <circle cx="14" cy="14" r="3" fill="url(#mobHexLg)" opacity="0.9" />
                         <defs>
                             <linearGradient id="mobHexLg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stop-color="#d4a853"/>
-                                <stop offset="50%" stop-color="#e8c878"/>
-                                <stop offset="100%" stop-color="#b8922e"/>
+                                <stop offset="0%" stop-color="#d4a853" />
+                                <stop offset="50%" stop-color="#e8c878" />
+                                <stop offset="100%" stop-color="#b8922e" />
                             </linearGradient>
                         </defs>
                     </svg>
@@ -334,21 +336,11 @@
 
             <div class="mobile-content" id="singleTabMobile">
                 <div class="mobile-input-card">
-                    <textarea id="claimInputMobile" placeholder="Enter any claim to verify..." rows="4"
-                        maxlength="500"
+                    <textarea id="claimInputMobile" placeholder="Enter any claim to verify..." rows="4" maxlength="500"
                         oninput="toggleClearBtn('claimInputMobile', 'clearClaimMobile'); updateCharCount('claimInputMobile', 'claimCounterMobile', 500)"></textarea>
                     <button class="clear-input-btn" id="clearClaimMobile"
                         onclick="clearInput('claimInputMobile')">✕</button>
                     <div class="char-counter" id="claimCounterMobile">0 / 500</div>
-
-                    <label class="seg-pill-label" style="margin-top:14px;">Analysis Depth</label>
-                    <div class="seg-pill-wrap" id="segPillSingleMobile">
-                        <input type="hidden" id="reasoningEffortMobile" value="medium">
-                        <input type="hidden" id="numSourcesMobile" value="5">
-                        <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillSingleMobile','quick')">Quick</button>
-                        <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillSingleMobile','standard')">Standard</button>
-                        <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillSingleMobile','deep')">Deep</button>
-                    </div>
                 </div>
                 <button id="checkBtnMobile" class="btn-verify mobile-btn-verify" onclick="handleFactCheck()">
                     <span class="btn-icon">⬡</span>
@@ -374,6 +366,10 @@
                     <div class="mobile-example-chip" onclick="setExample('Goldfish have a three-second memory.')">
                         <span>🐟</span> Goldfish have a three-second memory.
                     </div>
+                    <div class="mobile-example-chip"
+                        onclick="setExample('A penny dropped from the Empire State Building can kill a person.')">
+                        <span>🪙</span> A penny dropped from the Empire State Building can kill.
+                    </div>
                 </div>
 
                 <div class="mobile-results-container">
@@ -383,21 +379,11 @@
 
             <div class="mobile-content" id="textTabMobile" style="display:none;">
                 <div class="mobile-input-card">
-                    <textarea id="textInputMobile" placeholder="Paste an article here..." rows="6"
-                        maxlength="5000"
+                    <textarea id="textInputMobile" placeholder="Paste an article here..." rows="6" maxlength="5000"
                         oninput="toggleClearBtn('textInputMobile', 'clearTextMobile'); updateCharCount('textInputMobile', 'textCounterMobile', 5000)"></textarea>
                     <button class="clear-input-btn" id="clearTextMobile"
                         onclick="clearInput('textInputMobile')">✕</button>
                     <div class="char-counter" id="textCounterMobile">0 / 5,000</div>
-
-                    <label class="seg-pill-label" style="margin-top:14px;">Analysis Depth</label>
-                    <div class="seg-pill-wrap" id="segPillTextMobile">
-                        <input type="hidden" id="textReasoningEffortMobile" value="medium">
-                        <input type="hidden" id="textNumSourcesMobile" value="5">
-                        <button class="seg-btn" data-seg="quick" onclick="selectSegment('segPillTextMobile','quick')">Quick</button>
-                        <button class="seg-btn active" data-seg="standard" onclick="selectSegment('segPillTextMobile','standard')">Standard</button>
-                        <button class="seg-btn" data-seg="deep" onclick="selectSegment('segPillTextMobile','deep')">Deep</button>
-                    </div>
                 </div>
                 <input type="hidden" id="maxClaimsMobile" value="6">
                 <!-- Action Button -->
@@ -440,33 +426,35 @@
                 <span class="help-modal-icon">&#x2728;</span>
                 <h3>How to get the best results</h3>
             </div>
-            <p class="help-modal-tip">Start with <strong>Quick</strong> &mdash; it&rsquo;s fast and handles most facts well. Hit <strong>Uncertain</strong>? Step up to the next level.</p>
+            <p class="help-modal-tip">Enter any claim &mdash; from everyday facts to complex statistics &mdash; and get
+                an evidence-backed verdict in seconds.</p>
             <div class="help-tiers">
                 <div class="help-tier green">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">Quick</span>
+                        <span class="help-tier-label">Web Search</span>
                     </div>
-                    <div class="help-tier-desc">Fastest. Best for clear-cut, widely reported facts.</div>
+                    <div class="help-tier-desc">Scours authoritative sources across the web for relevant evidence.</div>
                 </div>
-                <div class="help-tier-flow">escalate if Uncertain &darr;</div>
+                <div class="help-tier-flow">then &darr;</div>
                 <div class="help-tier yellow">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">Standard</span>
+                        <span class="help-tier-label">AI Analysis</span>
                     </div>
-                    <div class="help-tier-desc">Balanced. Better for statistics, rankings, or recent events.</div>
+                    <div class="help-tier-desc">Cross-references sources, checks data, and evaluates the claim.</div>
                 </div>
-                <div class="help-tier-flow">escalate further &darr;</div>
+                <div class="help-tier-flow">then &darr;</div>
                 <div class="help-tier red">
                     <div class="help-tier-header">
                         <span class="tier-dot"></span>
-                        <span class="help-tier-label">Deep</span>
+                        <span class="help-tier-label">Verdict</span>
                     </div>
-                    <div class="help-tier-desc">Most thorough. Use when verdict keeps returning Uncertain.</div>
+                    <div class="help-tier-desc">Delivers a clear True, False, or Uncertain verdict with reasoning.</div>
                 </div>
             </div>
-            <p class="help-modal-footer">Higher analysis depth uses more tokens and takes longer to respond.</p>
+            <p class="help-modal-footer">Powered by Cerebras AI &mdash; results include sources you can verify yourself.
+            </p>
         </div>
     </div>
 
@@ -475,19 +463,28 @@
     <div class="history-drawer" id="historyDrawer">
         <div class="history-drawer-header">
             <div class="history-drawer-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
                 Recent Checks
             </div>
             <div class="history-drawer-actions">
                 <button class="history-drawer-clear" onclick="clearHistory()">Clear all</button>
                 <button class="history-drawer-close" onclick="closeHistoryDrawer()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                 </button>
             </div>
         </div>
         <div class="history-drawer-list" id="drawerHistoryList"></div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 

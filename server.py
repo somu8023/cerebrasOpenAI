@@ -272,10 +272,6 @@ def api_fact_check():
     if not claim:
         return jsonify({"error": "No claim provided"}), 400
 
-    mode = data.get('mode', 'one-shot')
-    num_sources = int(data.get('num_sources', 3))
-    reasoning_effort = data.get('reasoning_effort', 'medium')
-
     start_time = time.time()
 
     try:
@@ -284,9 +280,6 @@ def api_fact_check():
             parallel_client,
             claim=claim,
             model=model,
-            mode=mode,
-            num_sources=num_sources,
-            reasoning_effort=reasoning_effort,
         )
         elapsed = time.time() - start_time
         result['elapsed_seconds'] = round(elapsed, 2)
@@ -326,9 +319,6 @@ def api_fact_check_text():
         return jsonify({"error": "No text provided"}), 400
 
     max_claims = int(data.get('max_claims', 6))
-    mode = data.get('mode', 'one-shot')
-    num_sources = int(data.get('num_sources', 3))
-    reasoning_effort = data.get('reasoning_effort', 'medium')
 
     start_time = time.time()
 
@@ -339,9 +329,6 @@ def api_fact_check_text():
             text=text,
             model=model,
             max_claims=max_claims,
-            mode=mode,
-            num_sources=num_sources,
-            reasoning_effort=reasoning_effort,
         )
         elapsed = time.time() - start_time
         increment_usage()

@@ -1,0 +1,51 @@
+{
+  "claim": "Water boils at 100 degrees Celsius at sea level.",
+  "elapsed_seconds": 6.76,
+  "model": "gpt-oss-120b",
+  "reason": "The claim is a factual statement requiring the boiling temperature of water at sea level (standard atmospheric pressure). \n- Source 3 (UMD chemistry page) explicitly states: \"For example, at sea level water will remain at 100 degrees Celsius (at a pressure of 1 atm or 101.3 kPa) while boiling.\" This provides the numeric value 100\u202f\u00b0C and ties it to sea\u2011level pressure of 1\u202fatm. \n- Source 2 (Pew Research) notes that \"Water boils at 212 degrees Fahrenheit (100 degrees Celsius)\" and adds that the temperature changes with altitude, implying the standard value applies at sea level. \n- Source 1 (Britannica, 2026) defines boiling point as the temperature where vapor pressure equals surrounding pressure, supporting the scientific basis, though the excerpt does not give the exact number.\n- Training knowledge confirms that sea level is defined as the altitude where atmospheric pressure is approximately 1\u202fatm (101.3\u202fkPa), the standard pressure used for the 100\u202f\u00b0C boiling point.\nCombining the explicit numeric evidence with the definition of sea\u2011level pressure confirms the claim.\nTherefore the claim is true.",
+  "reset_at_utc": "2026-02-24T00:00:00Z",
+  "search_sources": [
+    {
+      "quality_tier": "Trusted Org",
+      "title": "Boiling point | Definition, Examples, Temperature, & Facts | Britannica",
+      "url": "https://www.britannica.com/science/boiling-point"
+    },
+    {
+      "quality_tier": "Trusted Org",
+      "title": "Does water\u2019s boiling point change with altitude? Americans aren\u2019t sure | Pew Research Center",
+      "url": "https://www.pewresearch.org/short-reads/2015/09/14/does-waters-boiling-point-change-with-altitude-americans-arent-sure/"
+    },
+    {
+      "quality_tier": "Educational",
+      "title": "Boiling Point",
+      "url": "https://terpconnect.umd.edu/~wbreslyn/chemistry/pressure/boiling-point.html"
+    },
+    {
+      "quality_tier": "Educational",
+      "title": "All About Water and Ice Background - Lunar and Planetary Institute",
+      "url": "https://www.lpi.usra.edu/education/explore/ice/background/allAboutWater/"
+    },
+    {
+      "quality_tier": "Trusted Org",
+      "title": "UNEP - UN Environment Programme",
+      "url": "http://unep.org"
+    }
+  ],
+  "sources": [
+    "https://terpconnect.umd.edu/~wbreslyn/chemistry/pressure/boiling-point.html",
+    "https://www.britannica.com/science/boiling-point",
+    "https://www.pewresearch.org/short-reads/2015/09/14/does-waters-boiling-point-change-with-altitude-americans-arent-sure/"
+  ],
+  "sub_claims": [
+    {
+      "claim": "Water boils at 100\u202f\u00b0C under a pressure of 1\u202fatm",
+      "status": "true"
+    },
+    {
+      "claim": "Sea level corresponds to a pressure of 1\u202fatm (standard atmospheric pressure)",
+      "status": "true"
+    }
+  ],
+  "timestamp": "2026-02-22T20:32:50.002944",
+  "verdict": "true"
+}
