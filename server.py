@@ -178,26 +178,13 @@ def check_rate_limit():
 
     if redis is not None:
         # --- Redis path ---
+        # Redis is authoritative — do NOT sync X-Local-Used back into Redis.
+        # Doing so would resurrect a stale client count after a UTC midnight reset.
         current_usage = _get_count_redis(ip)
-        # Sync with client's local tracker (take whichever is higher)
-        try:
-            local_used = int(request.headers.get('X-Local-Used', '0'))
-            if local_used > current_usage:
-                current_usage = local_used
-                _set_count_redis(ip, current_usage)
-        except ValueError:
-            pass
     else:
         # --- In-memory fallback path ---
-        current_usage, server_has_record = _get_count_mem(ip)
-        if server_has_record:
-            try:
-                local_used = int(request.headers.get('X-Local-Used', '0'))
-                if local_used > current_usage:
-                    current_usage = local_used
-                    _set_count_mem(ip, current_usage)
-            except ValueError:
-                pass
+        # Server count is authoritative — do NOT sync X-Local-Used back into memory.
+        current_usage, _ = _get_count_mem(ip)
 
     reset_at_utc = _next_midnight_utc()
 
@@ -358,26 +345,13 @@ def get_usage():
 
     if redis is not None:
         # --- Redis path ---
+        # Redis is authoritative — do NOT sync X-Local-Used back into Redis.
+        # Doing so would resurrect a stale client count after a UTC midnight reset.
         used = _get_count_redis(ip)
-        # Sync with client's local tracker (take whichever is higher)
-        try:
-            local_used = int(request.headers.get('X-Local-Used', '0'))
-            if local_used > used:
-                used = local_used
-                _set_count_redis(ip, used)
-        except ValueError:
-            pass
     else:
         # --- In-memory fallback ---
-        used, server_has_record = _get_count_mem(ip)
-        if server_has_record:
-            try:
-                local_used = int(request.headers.get('X-Local-Used', '0'))
-                if local_used > used:
-                    used = local_used
-                    _set_count_mem(ip, used)
-            except ValueError:
-                pass
+        # Server count is authoritative — do NOT sync X-Local-Used back into memory.
+        used, _ = _get_count_mem(ip)
 
     return jsonify({
         "used": used,

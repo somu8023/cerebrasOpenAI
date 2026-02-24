@@ -262,18 +262,10 @@ async function checkUsage() {
         if (!res.ok) return;
         const serverUsage = await res.json();
 
-        let parsedLocal = parseInt(localUsed);
-        // If server shows full quota and used=0, UTC day rolled over — trust server
-        const serverReset = serverUsage.used === 0 && serverUsage.remaining === serverUsage.max;
-        if (serverReset) {
-            localStorage.setItem('fc_used', '0');
-        } else if (serverUsage.used > parsedLocal) {
-            localStorage.setItem('fc_used', serverUsage.used.toString());
-        } else if (parsedLocal > serverUsage.used) {
-            serverUsage.used = parsedLocal;
-            serverUsage.remaining = Math.max(0, serverUsage.max - parsedLocal);
-            serverUsage.limit_reached = serverUsage.used >= serverUsage.max;
-        }
+        // Server is always authoritative — sync localStorage to match.
+        // This correctly handles UTC midnight resets where Redis has expired
+        // the key (used=0) but the client still holds a stale fc_used value.
+        localStorage.setItem('fc_used', (serverUsage.used || 0).toString());
 
         usageData = serverUsage;
         renderUsageBadge();
@@ -687,7 +679,7 @@ async function handleTextAnalysis() {
 /* ── Cube processing animation ── */
 function setCubeProcessing(active, statusText) {
     const emptyState = document.getElementById('emptyState');
-    const statusEl = document.getElementById('processingStatus');
+    const statusEl   = document.getElementById('processingStatus');
     if (emptyState) {
         if (active) {
             emptyState.classList.add('is-processing');
@@ -698,8 +690,8 @@ function setCubeProcessing(active, statusText) {
         }
     }
     // Mobile hex loader
-    const mobLoader = document.getElementById('mobileHexLoader');
-    const mobStatus = document.getElementById('mobileProcessingStatus');
+    const mobLoader  = document.getElementById('mobileHexLoader');
+    const mobStatus  = document.getElementById('mobileProcessingStatus');
     if (mobLoader) {
         mobLoader.style.display = active ? 'flex' : 'none';
         if (mobStatus) mobStatus.textContent = statusText || '';
@@ -726,79 +718,55 @@ function setCubeStatus(text) {
 function formatReasoning(text) {
     if (!text) return '';
 
-    // ── 1. Strip noise already shown elsewhere in UI ──────────────────────────
+    // Strip leaked output lines — already shown in UI
     text = text.replace(/\n?\**Verdict\**:\s*\w+\.?\s*$/im, '');
     text = text.replace(/\n?Sub-?claims?\s+evaluated?:?[\s\S]*$/im, '');
-    text = text.replace(/\n?\[(Training knowledge|Based on historical record)[^\]]*\]/gi,
-        ' <em class="reasoning-training">[training knowledge]</em>');
-    text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, ''); // strip bare URLs
+    text = text.replace(/\n?\[(Training knowledge|Based on historical record)[^\]]*\]/gi, ' <em style="color:var(--text-tertiary);font-size:0.78rem">[training knowledge]</em>');
     text = text.trim();
 
-    // ── 2. Split into logical lines on newlines or sentence boundaries ────────
-    // First honour explicit newlines, then split long prose sentences.
-    const rawLines = text.split(/\n/);
-    const lines = [];
-    for (const raw of rawLines) {
-        const trimmed = raw.trim();
-        if (!trimmed) continue;
+    // Strip bare URLs in parens — sources shown in the Sources tab
+    text = text.replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
 
-        // If line is a section header (short, ends with colon) — keep as-is
-        if (/^[A-Z][^:]{0,60}:\s*$/.test(trimmed)) {
-            lines.push({ type: 'header', text: trimmed });
-            continue;
-        }
+    // Escape HTML
+    let f = escHtml(text);
 
-        // If line starts with a bullet/numbered list marker — keep as-is
-        if (/^[-*•]\s+/.test(trimmed) || /^\d+[.)]\s+/.test(trimmed)) {
-            lines.push({ type: 'bullet', text: trimmed.replace(/^[-*•]\s+/, '').replace(/^\d+[.)]\s+/, '') });
-            continue;
-        }
+    // Section headers: lines like "Claim type", "Evidence for (1)", "Evidence Triage", etc.
+    // Match a short line (≤60 chars) ending with a colon at a line boundary
+    f = f.replace(/(^|<br>)([^<\n]{1,60}:)(?=\s*<br>|$)/g,
+        (_, pre, header) => `${pre}<span class="reasoning-label">${header}</span>`);
 
-        // Otherwise split prose into individual sentences for readability
-        // (split after . ! ? followed by space + capital, but keep abbreviations whole)
-        const sentences = trimmed.split(/(?<=[.!?])\s+(?=[A-Z"'(])/);
-        for (const s of sentences) {
-            if (s.trim()) lines.push({ type: 'prose', text: s.trim() });
-        }
-    }
+    // Bold **text**
+    f = f.replace(/\*\*(.*?)\*\*/g, '<strong class="reasoning-strong">$1</strong>');
 
-    // ── 3. Render each line type ──────────────────────────────────────────────
-    const parts = lines.map(line => {
-        const safe = escHtml(line.text)
-            // Bold **text**
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="reasoning-strong">$1</strong>')
-            // Source N references like "Source 1", "Source 3"
-            .replace(/\b(Source\s+\d+)\b/g, '<span class="reasoning-src-ref">$1</span>');
+    // Newlines → breaks
+    f = f.replace(/\n/g, '<br>');
 
-        if (line.type === 'header') {
-            return `<div class="reasoning-section-header">${safe}</div>`;
-        }
-        if (line.type === 'bullet') {
-            return `<div class="reasoning-item"><span class="reasoning-bullet">&#8250;</span><span>${safe}</span></div>`;
-        }
-        // prose sentence
-        return `<div class="reasoning-item"><span class="reasoning-bullet">&#8250;</span><span>${safe}</span></div>`;
-    });
+    // Bullet: asterisk or dash at line start
+    f = f.replace(/(?:^|<br>)[*\-]\s+/g, '<br><span class="reasoning-bullet">&bull;</span> ');
 
-    return parts.join('');
+    // Numbered list items
+    f = f.replace(/(?:^|<br>)(\d+\.)\s+/g,
+        (_, num) => `<br><span class="reasoning-num">${num}</span> `);
+
+    // Clean up stacked breaks
+    f = f.replace(/(<br>\s*){3,}/g, '<br><br>');
+    f = f.replace(/^(<br>\s*)+/, '');
+
+    return f;
 }
-
 
 function renderSubClaims(subClaims) {
     if (!subClaims || !subClaims.length) return '';
     const rows = subClaims.map(sc => {
         const st = (sc.status || 'uncertain').toLowerCase();
         const icon = st === 'true' ? '✓' : st === 'false' ? '✕' : '?';
-        const cls = st === 'true' ? 'sc-true' : st === 'false' ? 'sc-false' : 'sc-uncertain';
+        const cls  = st === 'true' ? 'sc-true' : st === 'false' ? 'sc-false' : 'sc-uncertain';
         return `<div class="sub-claim-row ${cls}">
             <span class="sc-icon">${icon}</span>
             <span class="sc-text">${escHtml(sc.claim || '')}</span>
         </div>`;
     }).join('');
-    return `<div class="sub-claims-list">
-        <div class="sub-claims-label">Claim broken into verifiable parts</div>
-        ${rows}
-    </div>`;
+    return `<div class="sub-claims-list">${rows}</div>`;
 }
 
 function renderResultCard(data, claim) {
@@ -926,7 +894,7 @@ function copyResult(btn) {
     const verdictLabel = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
 
     let sources = [];
-    try { sources = JSON.parse(card.dataset.sources || '[]'); } catch { }
+    try { sources = JSON.parse(card.dataset.sources || '[]'); } catch {}
 
     // ── Plain text version ──────────────────────────────────
     const divider = '─'.repeat(48);
@@ -965,9 +933,9 @@ function copyResult(btn) {
     // ── Write both formats to clipboard ─────────────────────
     const doCopy = (typeof ClipboardItem !== 'undefined')
         ? navigator.clipboard.write([new ClipboardItem({
-            'text/html': new Blob([fullHtml], { type: 'text/html' }),
+            'text/html':  new Blob([fullHtml], { type: 'text/html' }),
             'text/plain': new Blob([plainText], { type: 'text/plain' }),
-        })])
+          })])
         : navigator.clipboard.writeText(plainText);
 
     doCopy.then(() => {
@@ -1002,31 +970,19 @@ function shareResult(btn) {
 /* ============================================================
    DOWNLOAD (PDF / WORD)
    ============================================================ */
-function closeAllDlMenus() {
-    document.querySelectorAll('.dl-menu.open').forEach(menu => {
-        menu.classList.remove('open');
-        if (menu._closeListener) {
-            document.removeEventListener('click', menu._closeListener);
-            menu._closeListener = null;
-        }
-    });
-}
-
 function toggleDlMenu(btn) {
     const menu = btn.nextElementSibling;
     const isOpen = menu.classList.contains('open');
-
-    closeAllDlMenus();
-
+    document.querySelectorAll('.dl-menu.open').forEach(m => m.classList.remove('open'));
     if (!isOpen) {
         menu.classList.add('open');
-        menu._closeListener = function closeDl(e) {
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                closeAllDlMenus();
-            }
-        };
         setTimeout(() => {
-            document.addEventListener('click', menu._closeListener);
+            document.addEventListener('click', function closeDl(e) {
+                if (!menu.contains(e.target) && e.target !== btn) {
+                    menu.classList.remove('open');
+                    document.removeEventListener('click', closeDl);
+                }
+            });
         }, 0);
     }
 }
@@ -1037,7 +993,7 @@ function downloadResult(btn, format) {
     const verdict = card.dataset.verdict || '';
     const reasoning = card.dataset.reasoning || '';
     const sources = (() => { try { return JSON.parse(card.dataset.sources || '[]'); } catch { return []; } })();
-    closeAllDlMenus();
+    btn.closest('.dl-menu').classList.remove('open');
     const slug = claim.slice(0, 30).replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'factcheck';
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     if (format === 'pdf') _dlPdf(claim, verdict, reasoning, sources, slug, date);
@@ -1055,74 +1011,56 @@ function _dlPdf(claim, verdict, reasoning, sources, slug, date) {
     let y = 20;
 
     const addText = (text, opts = {}) => {
-        const { size = 10, bold = false, color = [200, 200, 200], maxW = contentW, indentX = 0, lineIndent = 0 } = opts;
-        // Clean any stray newlines from scraped source text which breaks jsPDF's splitTextToSize
-        text = String(text).replace(/\s+/g, ' ');
+        const { size = 10, bold = false, color = [200, 200, 200], maxW = contentW } = opts;
         doc.setFontSize(size);
         doc.setFont('helvetica', bold ? 'bold' : 'normal');
         doc.setTextColor(...color);
-        const lines = doc.splitTextToSize(text, maxW - indentX - lineIndent);
-        lines.forEach((line, i) => {
-            if (y > pageH - 15) { doc.addPage(); doc.setFillColor(255, 255, 255); doc.rect(0, 0, pageW, pageH, 'F'); y = 20; }
-            doc.text(line.trimEnd(), margin + indentX + (i > 0 ? lineIndent : 0), y);
+        const lines = doc.splitTextToSize(String(text), maxW);
+        lines.forEach(line => {
+            if (y > pageH - 15) { doc.addPage(); doc.setFillColor(14, 16, 24); doc.rect(0, 0, pageW, pageH, 'F'); y = 20; }
+            doc.text(line, margin, y);
             y += size * 0.45;
         });
         y += 2;
     };
     const addRule = () => {
-        doc.setDrawColor(220, 220, 220);
+        doc.setDrawColor(80, 70, 40);
         doc.line(margin, y, pageW - margin, y);
         y += 5;
     };
 
-    doc.setFillColor(255, 255, 255);
+    doc.setFillColor(14, 16, 24);
     doc.rect(0, 0, pageW, pageH, 'F');
 
-    addText('Fact-Check Report', { size: 18, bold: true, color: [146, 104, 10] }); // Darker gold for white bg
+    addText('Fact-Check Report', { size: 18, bold: true, color: [212, 168, 83] });
     addText(date, { size: 8, color: [120, 120, 120] });
     y += 3; addRule();
 
-    addText('CLAIM', { size: 8, bold: true, color: [146, 104, 10] });
-    addText(claim, { size: 11, color: [40, 40, 40] });
+    addText('CLAIM', { size: 8, bold: true, color: [212, 168, 83] });
+    addText(claim, { size: 11, color: [230, 230, 230] });
     y += 2;
 
-    const vColor = verdict === 'TRUE' ? [22, 163, 74] : verdict === 'FALSE' ? [220, 38, 38] : [217, 119, 6]; // Darker vibrant colors
-    addText('VERDICT', { size: 8, bold: true, color: [146, 104, 10] });
+    const vColor = verdict === 'TRUE' ? [74, 222, 128] : verdict === 'FALSE' ? [248, 113, 113] : [251, 191, 36];
+    addText('VERDICT', { size: 8, bold: true, color: [212, 168, 83] });
     addText(verdict, { size: 14, bold: true, color: vColor });
     y += 2; addRule();
 
     if (reasoning) {
-        addText('REASONING', { size: 8, bold: true, color: [146, 104, 10] });
-        y += 1;
-
-        const lines = reasoning.split('\n');
-        lines.forEach(line => {
-            let t = line.trim()
-                .replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
-                .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '[training knowledge]')
-                .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
-            if (!t) return;
-
-            if (t.startsWith('•') || t.startsWith('-')) {
-                // Draw gold chevron manually to match UI
-                doc.setFontSize(9);
-                doc.setTextColor(146, 104, 10);
-                doc.text('›', margin, y);
-                // Draw wrapped text cleanly indented
-                addText(t.substring(1).trim(), { size: 9, color: [60, 60, 60], indentX: 4 });
-            } else {
-                addText(t, { size: 9, color: [60, 60, 60] });
-            }
-        });
+        addText('REASONING', { size: 8, bold: true, color: [212, 168, 83] });
+        const clean = reasoning
+            .replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
+            .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '[training knowledge]')
+            .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '');
+        addText(clean, { size: 9, color: [200, 200, 200] });
         y += 2;
     }
 
     if (sources.length) {
         addRule();
-        addText('SOURCES', { size: 8, bold: true, color: [146, 104, 10] });
+        addText('SOURCES', { size: 8, bold: true, color: [212, 168, 83] });
         sources.forEach((s, i) => {
-            addText(`${i + 1}. ${s.title || s.url || ''}`, { size: 8, bold: true, color: [40, 40, 40] });
-            if (s.url) addText(s.url, { size: 7, color: [59, 111, 196] }); // Clear blue link
+            addText(`${i + 1}. ${s.title || s.url || ''}`, { size: 8, bold: true, color: [200, 200, 200] });
+            if (s.url) addText(s.url, { size: 7, color: [100, 140, 200] });
         });
     }
 
@@ -1134,21 +1072,12 @@ function _dlPdf(claim, verdict, reasoning, sources, slug, date) {
 
 function _dlWord(claim, verdict, reasoning, sources, slug, date) {
     const vColor = verdict === 'TRUE' ? '#16a34a' : verdict === 'FALSE' ? '#dc2626' : '#d97706';
-    const cleanReasoning = (reasoning || '').split('\n')
-        .map(line => {
-            let t = line.trim()
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                .replace(/\*(.*?)\*/g, '<i>$1</i>')
-                .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '<em style="color:#888">[training knowledge]</em>')
-                .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '')
-                .replace(/\b(Source\s+\d+)\b/g, '<span style="background:#fdf8ec;border:1px solid #e0c588;color:#92680a;padding:1px 5px;border-radius:8px;font-size:8pt;font-weight:bold">$1</span>');
-
-            if (!t) return '';
-            if (t.startsWith('•') || t.startsWith('-')) {
-                return `<div style="margin-top:6px; margin-bottom:6px; padding-left:14px; text-indent:-10px;">&bull; &nbsp; ${t.substring(1).trim()}</div>`;
-            }
-            return `<div style="margin-top:6px; margin-bottom:6px;">${t}</div>`;
-        }).join('');
+    const cleanReasoning = (reasoning || '')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        .replace(/\[(Training knowledge|Based on historical record)[^\]]*\]/gi, '<em>[training knowledge]</em>')
+        .replace(/\s*\(https?:\/\/[^\s)]+\)/g, '')
+        .replace(/\n/g, '<br>');
     const sourcesHtml = sources.length
         ? sources.map((s, i) => `<p style="margin:6px 0;font-size:10pt"><b>${i + 1}. ${s.title || s.url || ''}</b>${s.url ? `<br><span style="color:#3b6fc4;font-size:9pt">${s.url}</span>` : ''}</p>`).join('')
         : '';
@@ -1222,7 +1151,6 @@ function renderSource(s, i, citedUrls = new Set()) {
 
     return `
     <div class="source-item" style="animation-delay:${i * 0.06}s">
-        <div class="source-num" title="Source ${i + 1}">${i + 1}</div>
         <div class="source-tier ${tierClass}">${escHtml(rawTier)}</div>
         <div class="source-info">
             <div class="source-title">${escHtml(title)}</div>
@@ -1433,22 +1361,16 @@ function addToHistory(claim, verdict, data) {
 }
 
 function loadHistory() {
-    // Update BOTH desktop and mobile history buttons independently.
-    // We bypass the $ override (which picks only one) by using the raw helper.
-    const desktopBtn = _origGetElementById('navHistoryBtn');
-    const desktopCount = _origGetElementById('navHistoryCount');
-    const mobileBtn = _origGetElementById('navHistoryBtnMobile');
-    const mobileCount = _origGetElementById('navHistoryCountMobile');
-
-    [desktopBtn, mobileBtn].forEach(btn => {
-        if (!btn) return;
+    // Update navbar badge
+    const btn = $('navHistoryBtn');
+    const countEl = $('navHistoryCount');
+    if (btn) {
         btn.style.display = checkHistory.length ? '' : 'none';
-    });
-    if (desktopCount) desktopCount.textContent = checkHistory.length;
-    if (mobileCount) mobileCount.textContent = checkHistory.length;
+        if (countEl) countEl.textContent = checkHistory.length;
+    }
 
     // Populate drawer list
-    const list = _origGetElementById('drawerHistoryList');
+    const list = $('drawerHistoryList');
     if (!list) return;
 
     if (!checkHistory.length) {
@@ -1483,24 +1405,17 @@ function loadHistory() {
             setExample(entry.claim);
             closeHistoryDrawer();
             if (entry && entry.data) {
-                // Pick the correct result container for the current viewport
-                const isMobile = window.innerWidth <= 900;
-                const resultArea = isMobile
-                    ? _origGetElementById('resultAreaMobile')
-                    : _origGetElementById('resultArea');
-
+                const resultArea = $('resultArea');
                 if (resultArea) {
                     showEmptyState(false);
                     resultArea.innerHTML = renderResultCard(entry.data, entry.claim);
                     showResultsClear(true);
-
-                    // On mobile: hide input form, scroll results into view
-                    if (isMobile) {
+                    // On mobile: hide input form and scroll results into view
+                    if (window.innerWidth <= 900) {
                         toggleMobileInputs(false);
                         resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-
-                    // Inject cached-result disclaimer banner
+                    // Inject cached-result disclaimer
                     const card = resultArea.querySelector('.result-card');
                     if (card) {
                         const age = getTimeAgo(entry.time);
@@ -1517,7 +1432,6 @@ function loadHistory() {
         }
     };
 }
-
 
 function openHistoryDrawer() {
     const drawer = $('historyDrawer');
