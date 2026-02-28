@@ -70,40 +70,6 @@ def _build_retry_queries(claim: str, topics: list[str]) -> list[str]:
     return queries[:6]
 
 
-def _generate_llm_search_queries(cerebras_client: Cerebras, claim: str, model: str) -> list[str]:
-    """Use the LLM to aggressively decompose a complex claim into 2-3 optimal search engine queries.
-    This runs in < 0.5s and dramatically improves source retrieval for niche/historical topics."""
-    prompt = f"""
-    You are an expert search engine operator.
-    Convert this complex claim into exactly 2 or 3 highly optimized, targeted search queries.
-    
-    RULES:
-    - Strip all filler words (the, of, is, due to, etc.).
-    - Keep only core entities, years, and specific actions.
-    - If the claim is about a specific non-English region (e.g., France, Germany, Japan), TRANSLATE the search queries into the native language of that region. This is CRITICAL for finding local archival sources.
-    - If the claim has multiple sub-components, create one query covering the overall context and one for the specific trigger.
-    - Do NOT wrap queries in quotes. Do NOT number them.
-    - Return ONLY the queries, one per line. No preamble.
-    
-    CLAIM: "{claim}"
-    """
-    try:
-        start_t = time.time()
-        response = cerebras_client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=80,
-        )
-        content = response.choices[0].message.content or ""
-        queries = [q.strip("-*• 1234567890.)\"'") for q in content.split('\n') if q.strip()]
-        queries = [q for q in queries if len(q) > 4][:3]
-        print(f"[Pre-Search] LLM generated {len(queries)} targeted queries in {time.time() - start_t:.2f}s: {queries}")
-        return queries
-    except Exception as e:
-        print(f"[Pre-Search] LLM query generation failed: {e}")
-        return []
-
 def fact_check_single_claim(
     cerebras_client: Cerebras,
     parallel_client: Parallel,
@@ -116,32 +82,14 @@ def fact_check_single_claim(
     print(f"\nFact-checking claim: {claim}")
 
     try:
-        # Pre-Search: ask LLM for optimized sub-claim queries
-        llm_queries = _generate_llm_search_queries(cerebras_client, claim, model)
-        # Combine with standard search variations
-        search_queries = llm_queries + generate_search_variations(claim)
-
+        search_queries = generate_search_variations(claim)
         topic_domains = get_topic_domains(claim)
         topics = detect_claim_topics(claim)
         if topic_domains:
             print(f"[Search] Detected topics: {topics} -> boosting domains: {topic_domains[:4]}")
 
-        # Numeric/stat claims need larger excerpts to capture data tables in PDFs.
-        # Historical claims also get a large window — archival PDFs are dense and
-        # the relevant paragraph may appear deep in a 50-page document.
-        topics = detect_claim_topics(claim)
-        _is_hist_claim = "history" in topics or bool(_HISTORICAL_RE.search(claim)) if hasattr(__builtins__, '__import__') else False
-        try:
-            from .search import _HISTORICAL_RE as _HIST_RE_LOCAL
-            _is_hist_claim = "history" in topics or bool(_HIST_RE_LOCAL.search(claim))
-        except Exception:
-            pass
-        if is_numeric_claim(claim):
-            max_chars = 16000
-        elif _is_hist_claim:
-            max_chars = 20000   # archival PDFs need more room
-        else:
-            max_chars = 8000
+        # Numeric/stat claims need larger excerpts to capture data tables in PDFs
+        max_chars = 16000 if is_numeric_claim(claim) else 8000
 
         # Collect pinned HTML stat-page URLs for detected topics
         pinned_urls_for_claim: list[str] = []
@@ -319,7 +267,7 @@ def fact_check_single_claim(
         Respond with STRICT JSON:
         {
           "verdict": "true" | "false" | "uncertain",
-          "reason": "EXACTLY 3 bullet points, each ≤ 15 words. Format: '• fact\n• fact\n• conclusion'. No preamble.",
+          "reason": "Show your structured reasoning here, including explicit numbers and calculations utilized.",
           "sub_claims": [
             {"claim": "Brief description of sub-claim or component", "status": "true" | "false" | "uncertain"}
           ],
@@ -336,17 +284,6 @@ def fact_check_single_claim(
             * CAUSAL LINK (if present): whether A caused B
         - Do NOT collapse the whole claim into a single sub_claim that just restates it.
         - Even a "simple" claim has at least 2 components: the subject fact and the specific assertion.
-
-        REASON FIELD — STRICT FORMAT (violations will be rejected):
-        • Write EXACTLY 3 bullet points starting with •
-        • Each bullet: one sentence, 15 words MAXIMUM
-        • No verbose intro like "The claim is evaluated..." — start bullet 1 immediately
-        • Inline source citation allowed only as (Source N) at end of bullet
-        • Bullet 3 MUST be the verdict conclusion sentence
-        Example of CORRECT format:
-        • Astronauts confirm the Great Wall is invisible to the naked eye from orbit. (Source 2)
-        • ESA retracted its claim; the image was a river, not the wall. (Source 3)
-        • The claim that the wall is visible from space is false.
         """
     ).strip()
 

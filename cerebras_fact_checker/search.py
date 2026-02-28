@@ -62,8 +62,8 @@ def score_source_quality(url: str) -> tuple[int, str]:
         "nature.com", "sciencedirect.com", "pubmed.ncbi.nlm.nih.gov",
         "scholar.google.com",
         # Historical archives & encyclopedias
-        "britannica.com", "jstor.org", "gallica.bnf.fr", "persee.fr", "cairn.info", "halshs.archives-ouvertes.fr",
-        "archives-nationales.culture.gouv.fr", "europeana.eu", "deutsche-digitale-bibliothek.de", "dialnet.unirioja.es", "scielo.org",
+        "britannica.com", "jstor.org", "gallica.bnf.fr",
+        "archives-nationales.culture.gouv.fr", "europeana.eu",
         "history.com", "bl.uk",
         # Official sports governing bodies
         "icc-cricket.com", "bcci.tv",
@@ -177,17 +177,6 @@ TOPIC_PINNED_URLS: dict[str, list[str]] = {
     "population": [
         "https://population.un.org/dataportal",
     ],
-    # Historical claims: primary archival & academic databases
-    "history": [
-        "https://gallica.bnf.fr/accueil/?lang=EN",               # BnF Gallica — French national digital library
-        "https://www.insee.fr/en/statistiques",                  # INSEE — French official statistics (historical series)
-        "https://www.jstor.org",                                 # JSTOR peer-reviewed journals
-        "https://link.springer.com",                             # Springer academic publisher
-        "https://www.tandfonline.com",                           # Taylor & Francis economic history journals
-        "https://www.persee.fr",                                 # Persée — French scholarly journals (open access)
-        "https://halshs.archives-ouvertes.fr",                   # HAL SHS — French open-access social science archive
-        "https://www.cairn.info",                                # Cairn — French academic journal platform
-    ],
 }
 
 # ── Claim topic → detection patterns ──────────────────────────────────────────
@@ -212,188 +201,53 @@ _TOPIC_PATTERNS: list[tuple[str, list[str]]] = [
 
 # ── Country / region → (language_code, language_name) ─────────────────────────
 _REGION_LANGUAGE_MAP: dict[str, tuple[str, str]] = {
-    # ── French ──
-    "south korea":  ("ko", "Korean"),
-    "north korea":  ("ko", "Korean"),
-    "france":       ("fr", "French"),
-    "french":       ("fr", "French"),
-    "paris":        ("fr", "French"),
-    "vosges":       ("fr", "French"),
-    "alsace":       ("fr", "French"),
-    "normandy":     ("fr", "French"),
-    "bordeaux":     ("fr", "French"),
-    "lyon":         ("fr", "French"),
-    "marseille":    ("fr", "French"),
-    "cevennes":     ("fr", "French"),
-    "brittany":     ("fr", "French"),
-    "provence":     ("fr", "French"),
-    "belgium":      ("fr", "French"),
-    # ── German ──
-    "germany":      ("de", "German"),
-    "german":       ("de", "German"),
-    "berlin":       ("de", "German"),
-    "bavaria":      ("de", "German"),
-    "austria":      ("de", "German"),
-    "switzerland":  ("de", "German"),
-    "munich":       ("de", "German"),
-    "hamburg":      ("de", "German"),
-    "cologne":      ("de", "German"),
-    "frankfurt":    ("de", "German"),
-    # ── Spanish / Latin America ──
-    "spain":        ("es", "Spanish"),
-    "spanish":      ("es", "Spanish"),
-    "madrid":       ("es", "Spanish"),
-    "barcelona":    ("es", "Spanish"),
-    "mexico":       ("es", "Spanish"),
-    "argentina":    ("es", "Spanish"),
-    "colombia":     ("es", "Spanish"),
-    "chile":        ("es", "Spanish"),
-    "peru":         ("es", "Spanish"),
-    "venezuela":    ("es", "Spanish"),
-    "cuba":         ("es", "Spanish"),
-    "bogota":       ("es", "Spanish"),
-    "lima":         ("es", "Spanish"),
-    "buenos aires": ("es", "Spanish"),
-    # ── Italian ──
-    "italy":        ("it", "Italian"),
-    "italian":      ("it", "Italian"),
-    "rome":         ("it", "Italian"),
-    "milan":        ("it", "Italian"),
-    "venice":       ("it", "Italian"),
-    "florence":     ("it", "Italian"),
-    "naples":       ("it", "Italian"),
-    "sicily":       ("it", "Italian"),
-    # ── Japanese ──
-    "japan":        ("ja", "Japanese"),
-    "japanese":     ("ja", "Japanese"),
-    "tokyo":        ("ja", "Japanese"),
-    "osaka":        ("ja", "Japanese"),
-    "kyoto":        ("ja", "Japanese"),
-    # ── Chinese ──
-    "china":        ("zh", "Chinese"),
-    "chinese":      ("zh", "Chinese"),
-    "beijing":      ("zh", "Chinese"),
-    "shanghai":     ("zh", "Chinese"),
-    "taiwan":       ("zh", "Chinese"),
-    "hong kong":    ("zh", "Chinese"),
-    # ── Russian / Slavic ──
-    "russia":       ("ru", "Russian"),
-    "russian":      ("ru", "Russian"),
-    "moscow":       ("ru", "Russian"),
-    "soviet":       ("ru", "Russian"),
-    "ussr":         ("ru", "Russian"),
-    "ukraine":      ("uk", "Ukrainian"),
-    "poland":       ("pl", "Polish"),
-    "warsaw":       ("pl", "Polish"),
-    # ── Portuguese ──
-    "portugal":     ("pt", "Portuguese"),
-    "brazil":       ("pt", "Portuguese"),
-    "sao paulo":    ("pt", "Portuguese"),
-    "rio de janeiro": ("pt", "Portuguese"),
-    # ── Dutch ──
-    "netherlands":  ("nl", "Dutch"),
-    "dutch":        ("nl", "Dutch"),
-    "amsterdam":    ("nl", "Dutch"),
-    "holland":      ("nl", "Dutch"),
-    # ── Nordic ──
-    "sweden":       ("sv", "Swedish"),
-    "stockholm":    ("sv", "Swedish"),
-    "norway":       ("no", "Norwegian"),
-    "oslo":         ("no", "Norwegian"),
-    "denmark":      ("da", "Danish"),
-    "copenhagen":   ("da", "Danish"),
-    "finland":      ("fi", "Finnish"),
-    "helsinki":     ("fi", "Finnish"),
-    # ── Greek / Turkish ──
-    "greece":       ("el", "Greek"),
-    "athens":       ("el", "Greek"),
-    "turkey":       ("tr", "Turkish"),
-    "istanbul":     ("tr", "Turkish"),
-    "ankara":       ("tr", "Turkish"),
-    # ── Korean ──
-    "korea":        ("ko", "Korean"),
-    "seoul":        ("ko", "Korean"),
-    # ── Arabic ──
-    "arabic":       ("ar", "Arabic"),
-    "saudi":        ("ar", "Arabic"),
-    "saudi arabia": ("ar", "Arabic"),
-    "egypt":        ("ar", "Arabic"),
-    "cairo":        ("ar", "Arabic"),
-    "iraq":         ("ar", "Arabic"),
-    "baghdad":      ("ar", "Arabic"),
-    "syria":        ("ar", "Arabic"),
-    "jordan":       ("ar", "Arabic"),
-    "morocco":      ("ar", "Arabic"),
-    "algeria":      ("ar", "Arabic"),
-    "tunisia":      ("ar", "Arabic"),
-    "lebanon":      ("ar", "Arabic"),
-    # ── English-speaking (en) — South Asia ──
-    "india":        ("en", "English"),
-    "indian":       ("en", "English"),
-    "delhi":        ("en", "English"),
-    "mumbai":       ("en", "English"),
-    "calcutta":     ("en", "English"),
-    "kolkata":      ("en", "English"),
-    "bangalore":    ("en", "English"),
-    "pakistan":     ("en", "English"),
-    "bangladesh":   ("en", "English"),
-    "sri lanka":    ("en", "English"),
-    "nepal":        ("en", "English"),
-    # ── English-speaking (en) — UK & Ireland ──
-    "uk":           ("en", "English"),
-    "united kingdom": ("en", "English"),
-    "britain":      ("en", "English"),
-    "british":      ("en", "English"),
-    "england":      ("en", "English"),
-    "london":       ("en", "English"),
-    "scotland":     ("en", "English"),
-    "wales":        ("en", "English"),
-    "ireland":      ("en", "English"),
-    "manchester":   ("en", "English"),
-    "birmingham":   ("en", "English"),
-    # ── English-speaking (en) — Oceania ──
-    "australia":    ("en", "English"),
-    "sydney":       ("en", "English"),
-    "melbourne":    ("en", "English"),
-    "new zealand":  ("en", "English"),
-    # ── English-speaking (en) — North America ──
-    "canada":       ("en", "English"),
-    "toronto":      ("en", "English"),
-    "vancouver":    ("en", "English"),
-    # ── English-speaking (en) — Africa ──
-    "nigeria":      ("en", "English"),
-    "lagos":        ("en", "English"),
-    "south africa": ("en", "English"),
-    "johannesburg": ("en", "English"),
-    "kenya":        ("en", "English"),
-    "nairobi":      ("en", "English"),
-    "ghana":        ("en", "English"),
-    "ethiopia":     ("en", "English"),
-    "tanzania":     ("en", "English"),
-    "uganda":       ("en", "English"),
-    "zimbabwe":     ("en", "English"),
-    # ── English-speaking (en) — Southeast Asia ──
-    "indonesia":    ("en", "English"),
-    "jakarta":      ("en", "English"),
-    "malaysia":     ("en", "English"),
-    "kuala lumpur": ("en", "English"),
-    "singapore":    ("en", "English"),
-    "thailand":     ("en", "English"),
-    "bangkok":      ("en", "English"),
-    "philippines":  ("en", "English"),
-    "manila":       ("en", "English"),
-    "vietnam":      ("en", "English"),
-    "myanmar":      ("en", "English"),
-    "cambodia":     ("en", "English"),
-    # ── English-speaking (en) — Middle East ──
-    "iran":         ("en", "English"),
-    "tehran":       ("en", "English"),
-    "israel":       ("en", "English"),
-    "tel aviv":     ("en", "English"),
-    "uae":          ("en", "English"),
-    "dubai":        ("en", "English"),
-    "qatar":        ("en", "English"),
-    "kuwait":       ("en", "English"),
+    "south korea": ("ko", "Korean"),
+    "north korea": ("ko", "Korean"),
+    "france":      ("fr", "French"),
+    "french":      ("fr", "French"),
+    "paris":       ("fr", "French"),
+    "vosges":      ("fr", "French"),
+    "alsace":      ("fr", "French"),
+    "normandy":    ("fr", "French"),
+    "germany":     ("de", "German"),
+    "german":      ("de", "German"),
+    "berlin":      ("de", "German"),
+    "bavaria":     ("de", "German"),
+    "austria":     ("de", "German"),
+    "switzerland": ("de", "German"),
+    "spain":       ("es", "Spanish"),
+    "spanish":     ("es", "Spanish"),
+    "madrid":      ("es", "Spanish"),
+    "mexico":      ("es", "Spanish"),
+    "argentina":   ("es", "Spanish"),
+    "italy":       ("it", "Italian"),
+    "italian":     ("it", "Italian"),
+    "rome":        ("it", "Italian"),
+    "japan":       ("ja", "Japanese"),
+    "japanese":    ("ja", "Japanese"),
+    "tokyo":       ("ja", "Japanese"),
+    "china":       ("zh", "Chinese"),
+    "chinese":     ("zh", "Chinese"),
+    "beijing":     ("zh", "Chinese"),
+    "russia":      ("ru", "Russian"),
+    "russian":     ("ru", "Russian"),
+    "moscow":      ("ru", "Russian"),
+    "portugal":    ("pt", "Portuguese"),
+    "brazil":      ("pt", "Portuguese"),
+    "netherlands": ("nl", "Dutch"),
+    "dutch":       ("nl", "Dutch"),
+    "poland":      ("pl", "Polish"),
+    "ukraine":     ("uk", "Ukrainian"),
+    "sweden":      ("sv", "Swedish"),
+    "norway":      ("no", "Norwegian"),
+    "denmark":     ("da", "Danish"),
+    "finland":     ("fi", "Finnish"),
+    "greece":      ("el", "Greek"),
+    "turkey":      ("tr", "Turkish"),
+    "korea":       ("ko", "Korean"),
+    "arabic":      ("ar", "Arabic"),
+    "saudi":       ("ar", "Arabic"),
+    "egypt":       ("ar", "Arabic"),
 }
 
 # ── Numeric / statistical indicator regex ──────────────────────────────────────
@@ -445,8 +299,6 @@ _REGIONAL_DOMAINS: dict[str, list[str]] = {
     "tr": ["tuik.gov.tr", "tbmm.gov.tr"],
     "ko": ["kostat.go.kr", "korea.kr"],
     "ar": ["stats.gov.sa", "capmas.gov.eg"],
-    # English-speaking regions: UK/India/Australia/Canada/Africa/SE Asia/Middle East
-    "en": ["bl.uk", "ons.gov.uk", "loc.gov", "nla.gov.au", "jstor.org"],
 }
 
 
@@ -592,108 +444,10 @@ def generate_search_variations(claim: str) -> list[str]:
     if _is_historical:
         _region = detect_claim_region(claim)
         _lang_hint = _region[1] if _region else ""
-        _lang_code = _region[0] if _region else ""
         if _lang_hint:
             queries.append(f"{claim} {_lang_hint} history")
         queries.append(f"{claim} historical encyclopedia")
         queries.append(f"history {claim} archives")
-        # ── Targeted archival queries per region ──────────────────────────────
-        # site: operators funnel the search to the most authoritative national
-        # archive / open-access scholarly platform for each language region.
-        # Strip stop-words from the claim to form a tight keyword core.
-        _core = re.sub(
-            r'\b(at the|of the|due to|the|and|in|from|a|an'
-            r'|beginning|increasing|import|cheaper|during|between|after|before)\b',
-            '', claim, flags=re.IGNORECASE
-        ).strip()
-        _core = re.sub(r'\s{2,}', ' ', _core).strip()
-
-        # Per-language: (primary open-access archive, secondary scholarly platform)
-        _ARCHIVAL_SITES: dict[str, list[str]] = {
-            # France — richest open-access ecosystem
-            "fr": [
-                "gallica.bnf.fr",           # BnF national digital library
-                "persee.fr",                # French open-access scholarly journals
-                "cairn.info",               # French academic platform
-                "halshs.archives-ouvertes.fr",  # French social science open archive
-                "jstor.org",
-            ],
-            # Germany
-            "de": [
-                "deutsche-digitale-bibliothek.de",  # German Digital Library
-                "bundesarchiv.de",          # Federal Archives
-                "jstor.org",
-                "springer.com",
-            ],
-            # Spain / Latin America
-            "es": [
-                "dialnet.unirioja.es",      # Spanish open-access portal
-                "redalyc.org",              # Latin American open-access journals
-                "jstor.org",
-            ],
-            # Italy
-            "it": [
-                "treccani.it",              # Treccani encyclopedia & journals
-                "jstor.org",
-                "springer.com",
-            ],
-            # Japan
-            "ja": [
-                "ndl.go.jp",               # National Diet Library digital collections
-                "jstor.org",
-                "springer.com",
-            ],
-            # China
-            "zh": [
-                "jstor.org",
-                "springer.com",
-            ],
-            # Russia
-            "ru": [
-                "jstor.org",
-                "springer.com",
-            ],
-            # Portugal / Brazil
-            "pt": [
-                "scielo.org",              # SciELO open-access Latin American journals
-                "jstor.org",
-            ],
-            # Netherlands
-            "nl": [
-                "jstor.org",
-                "springer.com",
-            ],
-            # Nordic (Swedish, Norwegian, Danish, Finnish)
-            "sv": ["jstor.org", "springer.com"],
-            "no": ["jstor.org", "springer.com"],
-            "da": ["jstor.org", "springer.com"],
-            "fi": ["jstor.org", "springer.com"],
-            # Polish / Ukrainian
-            "pl": ["jstor.org", "springer.com"],
-            "uk": ["jstor.org", "springer.com"],
-            # Greek / Turkish / Korean / Arabic
-            "el": ["jstor.org", "springer.com"],
-            "tr": ["jstor.org", "springer.com"],
-            "ko": ["jstor.org", "springer.com"],
-            "ar": ["jstor.org", "springer.com"],
-            # English-speaking regions (India, UK, Australia, Canada, Africa, SE Asia, Middle East)
-            # Rich English-language archival ecosystem.
-            "en": [
-                "bl.uk",                   # British Library digital collections
-                "hathitrust.org",           # HathiTrust digital library (academic)
-                "archive.org",             # Internet Archive (millions of historical texts)
-                "jstor.org",
-                "springer.com",
-            ],
-            # ── Universal fallback ── unknown region / unlisted language ─────────
-            # _lang_code = "" when detect_claim_region() returns None.
-            # Always guaranteed: JSTOR + Springer cover most world history topics.
-            "": ["jstor.org", "springer.com"],
-        }
-
-        _archival_sites = _ARCHIVAL_SITES.get(_lang_code, ["jstor.org", "springer.com"])
-        for _site in _archival_sites[:5]:   # cap at 5 site: queries to stay within query budget
-            queries.append(f"site:{_site} {_core}")
 
     # ── Numeric / statistical claim enhancements ───────────────────────────────
     if is_numeric_claim(claim) and not _is_historical:
@@ -732,23 +486,15 @@ def generate_search_variations(claim: str) -> list[str]:
             lang_code, lang_name = region
             queries.append(f"{claim} {lang_name} sources")
 
-    return queries[:15]
+    return queries[:8]
 
 
-def _recency_bonus(result: dict[str, Any], is_historical: bool = False) -> int:
+def _recency_bonus(result: dict[str, Any]) -> int:
     """Return a recency bonus (+25 to -15) based on the result's year.
-
-    For historical claims (is_historical=True), recency bonuses are suppressed:
-    a 1920 academic paper about the 1900s is MORE relevant than a 2024 blog
-    post, so we apply a flat 0 bonus rather than penalising old documents.
 
     Tries publish_date first, then falls back to a 4-digit year in the URL.
     Returns 0 if no year can be determined.
     """
-    # Historical claims: don't penalise old academic sources — they ARE the evidence.
-    if is_historical:
-        return 0
-
     year: int | None = None
 
     # 1. Try the publish_date field
@@ -797,13 +543,11 @@ def search_web(
     else:
         queries = query
     
-    # Use the top generated queries for the objective
-    queries_list = "\n        - ".join(queries[:3])
+    # Use first query for objective, but search with all variations
     import textwrap
     objective = textwrap.dedent(
         f"""
-        Find high-quality, relevant sources that address these topics/questions:
-        - {queries_list}
+        Find high-quality, up-to-date sources that answer the question: {queries[0]}
         
         ONLY return results from highly authoritative sources:
         - Government (.gov)
@@ -902,15 +646,9 @@ def search_web(
         all_results.append(result_dict)
 
     # ── Fixed large pool: always fetch enough so num=3 and num=6 draw from the same set ──
-    # Detect whether this is a historical claim so recency scoring is suppressed.
-    _is_hist = any(
-        kw in " ".join(queries).lower()
-        for kw in ["century", "histor", "archiv", "decline", "textile", "industrial", "siècle", "déclin"]
-    )
     # Compute composite score = quality (authority) + recency bonus
-    # Historical claims: recency bonus is flat 0 so old academic papers aren't penalised.
     for res in all_results:
-        res["composite_score"] = res["quality_score"] + _recency_bonus(res, is_historical=_is_hist)
+        res["composite_score"] = res["quality_score"] + _recency_bonus(res)
 
     # Sort by composite score descending (recency-weighted authority)
     all_results.sort(key=lambda x: x["composite_score"], reverse=True)
@@ -918,11 +656,9 @@ def search_web(
     # Filter: hard-exclude composite <= 10
     all_results = [r for r in all_results if r["composite_score"] > 10]
 
-    # For historical claims, relax the quality gate — academic PDFs from JSTOR/
-    # Gallica/Persée often score 20 ("Other") but are the most relevant sources.
-    quality_threshold = 60 if _is_hist else 80
-    preferred = [r for r in all_results if r["quality_score"] >= quality_threshold]
-    fallback  = [r for r in all_results if r["quality_score"] < quality_threshold]
+    # Prefer authoritative sources (quality_score >= 80); recency already baked into composite
+    preferred = [r for r in all_results if r["quality_score"] >= 80]
+    fallback  = [r for r in all_results if r["quality_score"] < 80]
 
     if len(preferred) >= num:
         results = preferred[:num]
@@ -931,10 +667,10 @@ def search_web(
     else:
         results = all_results[:num]
 
-    # ── Recency floor: inject freshest source only for non-historical claims ──
-    # For historical claims the "freshest" source is often a blog post or news
-    # aggregator — exactly the kind of low-quality source we want to avoid.
-    if results and not _is_hist:
+    # ── Recency floor: always include the freshest source in the pool ─────────
+    # Guarantees that num=2 and num=6 both see the most recent evidence,
+    # preventing stale training-knowledge fallback from giving wrong verdicts.
+    if results:
         freshest = max(all_results, key=lambda x: _recency_bonus(x), default=None)
         if freshest and freshest["url"] not in {r["url"] for r in results}:
             # Replace the last (lowest-composite) result with the freshest one

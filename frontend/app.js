@@ -262,10 +262,18 @@ async function checkUsage() {
         if (!res.ok) return;
         const serverUsage = await res.json();
 
-        // Server is always authoritative — sync localStorage to match.
-        // This correctly handles UTC midnight resets where Redis has expired
-        // the key (used=0) but the client still holds a stale fc_used value.
-        localStorage.setItem('fc_used', (serverUsage.used || 0).toString());
+        let parsedLocal = parseInt(localUsed);
+        // If server shows full quota and used=0, UTC day rolled over — trust server
+        const serverReset = serverUsage.used === 0 && serverUsage.remaining === serverUsage.max;
+        if (serverReset) {
+            localStorage.setItem('fc_used', '0');
+        } else if (serverUsage.used > parsedLocal) {
+            localStorage.setItem('fc_used', serverUsage.used.toString());
+        } else if (parsedLocal > serverUsage.used) {
+            serverUsage.used = parsedLocal;
+            serverUsage.remaining = Math.max(0, serverUsage.max - parsedLocal);
+            serverUsage.limit_reached = serverUsage.used >= serverUsage.max;
+        }
 
         usageData = serverUsage;
         renderUsageBadge();
