@@ -267,7 +267,7 @@ def fact_check_single_claim(
         Respond with STRICT JSON:
         {
           "verdict": "true" | "false" | "uncertain",
-          "reason": "Show your structured reasoning here, including explicit numbers and calculations utilized.",
+          "reason": "ALWAYS output ALL FOUR sections in this EXACT order (plain text, no markdown headers). Do NOT stop after Conclusion — the Evidence section is MANDATORY and must always appear last:\n\nClaim type: [Factual | Comparative | Numeric | Causal | Temporal | Sequential | Definitional]\n\nEvaluation:\n[Explicit logical step or computation. For numeric claims show the numbers and calculation. For causal claims trace the causal chain. For comparative claims show both values side by side.]\n\nConclusion:\n[One sentence: state the verdict and the single decisive fact.]\n\nEvidence:\n• Source N (Domain, Year): \"key quote or data\" — why it supports or contradicts the claim\n• Source N ...",
           "sub_claims": [
             {"claim": "Brief description of sub-claim or component", "status": "true" | "false" | "uncertain"}
           ],

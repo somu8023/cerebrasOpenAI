@@ -738,9 +738,9 @@ function formatReasoning(text) {
     // Escape HTML
     let f = escHtml(text);
 
-    // Section headers: lines like "Claim type", "Evidence for (1)", "Evidence Triage", etc.
-    // Match a short line (≤60 chars) ending with a colon at a line boundary
-    f = f.replace(/(^|<br>)([^<\n]{1,60}:)(?=\s*<br>|$)/g,
+    // Section headers: "Claim type:", "Evidence:", "Evaluation:", "Conclusion:"
+    // Must run BEFORE \n→<br>, so use \n as line boundary
+    f = f.replace(/(^|\n)([A-Z][A-Za-z ]{0,25}:)(?=[ \t\n]|$)/g,
         (_, pre, header) => `${pre}<span class="reasoning-label">${header}</span>`);
 
     // Bold **text**
@@ -759,6 +759,10 @@ function formatReasoning(text) {
     // Clean up stacked breaks
     f = f.replace(/(<br>\s*){3,}/g, '<br><br>');
     f = f.replace(/^(<br>\s*)+/, '');
+
+    // Source N references → clickable citation chips that jump to the Sources tab
+    f = f.replace(/\bSource\s+(\d+)\b/g,
+        (_, n) => `Source <span class="src-ref" onclick="srcRefClick(this,${n})" title="Jump to Source ${n}">${n}</span>`);
 
     return f;
 }
@@ -1149,6 +1153,20 @@ function switchResultTab(btn, tab) {
     card.querySelectorAll('.result-tab-panel').forEach(p => p.classList.toggle('hidden', p.dataset.tab !== tab));
 }
 
+function srcRefClick(el, n) {
+    const card = el.closest('.result-card');
+    // Switch to the Sources tab
+    const sourcesBtn = card.querySelector('.result-tab[onclick*="sources"]');
+    if (sourcesBtn && !sourcesBtn.classList.contains('active')) sourcesBtn.click();
+    // Highlight the matching source item
+    const sourceItem = card.querySelector(`.source-item[data-source-num="${n}"]`);
+    if (sourceItem) {
+        sourceItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        sourceItem.classList.add('source-highlight');
+        setTimeout(() => sourceItem.classList.remove('source-highlight'), 1400);
+    }
+}
+
 function renderSource(s, i, citedUrls = new Set()) {
     // search_sources shape: {url, title, quality_tier}
     const rawTier = s.quality_tier || s.tier || 'Other';
@@ -1158,7 +1176,8 @@ function renderSource(s, i, citedUrls = new Set()) {
     const cited = citedUrls.has(url);
 
     return `
-    <div class="source-item" style="animation-delay:${i * 0.06}s">
+    <div class="source-item" data-source-num="${i + 1}" style="animation-delay:${i * 0.06}s">
+        <div class="source-num">${i + 1}</div>
         <div class="source-tier ${tierClass}">${escHtml(rawTier)}</div>
         <div class="source-info">
             <div class="source-title">${escHtml(title)}</div>
