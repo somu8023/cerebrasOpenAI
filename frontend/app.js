@@ -740,7 +740,7 @@ function formatReasoning(text) {
 
     // Section headers: "Claim type:", "Evidence:", "Evaluation:", "Conclusion:"
     // Must run BEFORE \n→<br>, so use \n as line boundary
-    f = f.replace(/(^|\n)([A-Z][A-Za-z ]{0,25}:)(?=[ \t\n]|$)/g,
+    f = f.replace(/(^|\n)([A-Z][A-Za-z ]{0,25}:)\n?/g,
         (_, pre, header) => `${pre}<span class="reasoning-label">${header}</span>`);
 
     // Bold **text**
