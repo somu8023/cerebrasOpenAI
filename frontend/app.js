@@ -255,25 +255,12 @@ async function checkHealth() {
    ============================================================ */
 async function checkUsage() {
     try {
-        const localUsed = localStorage.getItem('fc_used') || '0';
-        const res = await fetch(`${API_BASE}/api/usage`, {
-            headers: { 'X-Local-Used': localUsed }
-        });
+        const res = await fetch(`${API_BASE}/api/usage`);
         if (!res.ok) return;
         const serverUsage = await res.json();
 
-        let parsedLocal = parseInt(localUsed);
-        // If server shows full quota and used=0, UTC day rolled over — trust server
-        const serverReset = serverUsage.used === 0 && serverUsage.remaining === serverUsage.max;
-        if (serverReset) {
-            localStorage.setItem('fc_used', '0');
-        } else if (serverUsage.used > parsedLocal) {
-            localStorage.setItem('fc_used', serverUsage.used.toString());
-        } else if (parsedLocal > serverUsage.used) {
-            serverUsage.used = parsedLocal;
-            serverUsage.remaining = Math.max(0, serverUsage.max - parsedLocal);
-            serverUsage.limit_reached = serverUsage.used >= serverUsage.max;
-        }
+        // Server is authoritative — always sync localStorage to server value
+        localStorage.setItem('fc_used', serverUsage.used.toString());
 
         usageData = serverUsage;
         renderUsageBadge();
@@ -520,7 +507,6 @@ async function handleFactCheck() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Local-Used': localStorage.getItem('fc_used') || '0',
                 ...(isSuperuser ? { 'X-Superuser': 'cerebras2024' } : {})
             },
             body: JSON.stringify({ claim })
@@ -627,7 +613,6 @@ async function handleTextAnalysis() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Local-Used': localStorage.getItem('fc_used') || '0',
                 ...(isSuperuser ? { 'X-Superuser': 'cerebras2024' } : {})
             },
             body: JSON.stringify({
