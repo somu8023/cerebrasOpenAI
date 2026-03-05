@@ -747,14 +747,23 @@ function formatReasoning(text, sourceNumMap = {}) {
     f = f.replace(/(<br>\s*){3,}/g, '<br><br>');
     f = f.replace(/^(<br>\s*)+/, '');
 
-    // Source N references → clickable citation chips that jump to the Sources tab
-    // Use sourceNumMap to translate original LLM numbers to sequential display numbers
-    f = f.replace(/\bSource\s+(\d+)\b/g,
-        (_, n) => {
-            const origN = parseInt(n);
-            const displayN = sourceNumMap[origN] || origN;
-            return `Source <span class="src-ref" onclick="srcRefClick(this,${origN})" title="Jump to Source ${displayN}">${displayN}</span>`;
+    // Source N / Sources N, M, and P → clickable citation chips
+    // Handle plural 'Sources A, B, and C' first, then singular 'Source N'
+    function makeChip(origN) {
+        const n = parseInt(origN);
+        const d = sourceNumMap[n] != null ? sourceNumMap[n] : n;
+        return `<span class="src-ref" onclick="srcRefClick(this,${n})" title="Jump to Source ${d}">${d}</span>`;
+    }
+    // Plural: "Sources 1, 3, and 4" or "Sources 1 and 2" etc.
+    f = f.replace(/\bSources\s+((?:\d+(?:\s*[,/]\s*|\s+and\s+|\s+&amp;\s+))*\d+)/g,
+        (_, nums) => {
+            const numbers = nums.match(/\d+/g) || [];
+            return 'Sources ' + numbers.map(makeChip).join(', ');
         });
+    // Singular: "Source N"
+    f = f.replace(/\bSource\s+(\d+)\b/g, (_, n) => `Source ${makeChip(n)}`);
+    // Clean up double 'Source Source' edge case (shouldn't happen but safety)
+    f = f.replace(/\bSource Source\b/g, 'Source');
 
     return f;
 }
@@ -790,13 +799,13 @@ function renderResultCard(data, claim) {
     const tokens = data.tokens_used ? `${(data.tokens_used / 1000).toFixed(1)}k tokens` : '';
     const time = data.elapsed_seconds ? `${data.elapsed_seconds.toFixed(1)}s` : (data.time_taken ? `${data.time_taken.toFixed(1)}s` : '');
 
-    // Map original 1-based source numbers (LLM's numbering) → sequential display numbers
-    // LLM references "Source N" based on position in searchSources; remap to
-    // sequential position in displaySources (cited-only list).
+    // Map LLM source numbers → sequential display numbers.
+    // Use s.llm_idx (set by backend = 1-based position in llm_results) so the
+    // mapping is correct even if quality-filtering removed some sources from the list.
     const sourceNumMap = {};
     displaySources.forEach((s, idx) => {
-        const origIdx = searchSources.indexOf(s);
-        if (origIdx !== -1) sourceNumMap[origIdx + 1] = idx + 1;
+        const llmIdx = s.llm_idx != null ? s.llm_idx : (searchSources.indexOf(s) + 1);
+        if (llmIdx > 0) sourceNumMap[llmIdx] = idx + 1;
     });
 
     const exportSources = citedSources.length > 0 ? citedSources : searchSources;

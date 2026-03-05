@@ -459,13 +459,15 @@ def fact_check_single_claim(
     # determines what they see, not an internal quality gate.
     # Quality tier is displayed as a badge so users can judge authority themselves.
     search_sources = []
-    for r in results:
+    for i, r in enumerate(results):
         if r.get("quality_score", 0) <= 10:
             continue  # still exclude hard-blocked domains
         title = r.get("title") or "No title"
         url = r["url"]
         quality_tier = r.get("quality_tier", "Unknown")
-        search_sources.append({"url": url, "title": title, "quality_tier": quality_tier})
+        # llm_idx: 1-based position in llm_results (= results[:8]) — exactly what
+        # the LLM calls "Source N" in its reasoning text.
+        search_sources.append({"url": url, "title": title, "quality_tier": quality_tier, "llm_idx": i + 1})
     
     sub_claims = data.get("sub_claims") or []
     if not isinstance(sub_claims, list):
