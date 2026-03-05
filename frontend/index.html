@@ -460,8 +460,22 @@
         <div class="history-drawer-list" id="drawerHistoryList"></div>
     </div>
 
+    <div id="versionBadge" style="
+        position:fixed;bottom:8px;right:12px;
+        font-size:0.62rem;color:rgba(255,255,255,0.2);
+        font-family:monospace;letter-spacing:0.04em;
+        pointer-events:none;z-index:10;
+        user-select:none;
+    "></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
+    <script>
+        fetch('/api/version').then(r => r.json()).then(d => {
+            const el = document.getElementById('versionBadge');
+            if (el && d.commit) el.textContent = 'v' + d.commit;
+        }).catch(() => {});
+    </script>
 </body>
 
 </html>
