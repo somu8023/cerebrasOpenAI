@@ -365,12 +365,18 @@ def health():
     })
 
 
-APP_VERSION = "1.0"
+def _read_version() -> str:
+    """Read version from version.txt next to this file."""
+    try:
+        version_file = Path(__file__).parent / "version.txt"
+        return version_file.read_text(encoding="utf-8").strip()
+    except Exception:
+        return "1.0"
 
 @app.route('/api/version', methods=['GET'])
 def get_version():
     """Return the current app version for display in the UI."""
-    return jsonify({"version": APP_VERSION})
+    return jsonify({"version": _read_version()})
 
 
 if __name__ == '__main__':
