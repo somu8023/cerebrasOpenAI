@@ -212,6 +212,19 @@ def fact_check_single_claim(
         - Sequence -> check adjacency.
         - Definition -> verify against official standard.
         - Ratio stated narratively (e.g., "five times") -> verify the underlying numeric values and compute the ratio directly if possible. Prefer exact rates over rounded descriptive statements.
+
+        DERIVED NUMERICAL INFERENCE (critical):
+        When a claim states a share, ratio, or percentage (e.g., "X accounts for Y% of Z"),
+        you MUST attempt to derive the answer from available data:
+        1. Look for the component values across ALL sources (they may be in different sources).
+           E.g., Source 1 may give "US GDP = $28 trillion" and Source 3 may give "World GDP = $105 trillion".
+        2. Compute the ratio/percentage yourself: 28 / 105 ≈ 26.7%.
+        3. Compare the computed value to the claimed value, allowing for reasonable approximation
+           (e.g., "about 25%" is close enough to 26.7%).
+        4. Issue a verdict based on the computed result — do NOT mark "uncertain" simply because
+           no single source explicitly states the exact percentage.
+        This applies to all derived metrics: shares, per-capita figures, growth rates, ratios, etc.
+        You are expected to do arithmetic. Not finding a pre-computed answer is NOT grounds for "uncertain".
         
         Determine verdict (SOURCES ONLY — do NOT use training knowledge):
 

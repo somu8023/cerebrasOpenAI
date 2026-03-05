@@ -169,6 +169,8 @@ TOPIC_PINNED_URLS: dict[str, list[str]] = {
     ],
     "economics": [
         "https://www.imf.org/en/Publications/WEO/weo-database/2024/October",
+        "https://data.worldbank.org/indicator/NY.GDP.MKTP.CD",          # World Bank GDP (current US$) by country
+        "https://statisticstimes.com/economy/projected-world-gdp-ranking.php",  # GDP ranking with shares
     ],
     "health": [
         "https://www.who.int/data/gho",
@@ -465,6 +467,40 @@ def generate_search_variations(claim: str) -> list[str]:
         if not has_year:
             queries.append(f"{claim} {report_year}")
         topics = detect_claim_topics(claim)
+
+        # ── Ratio / share decomposition ──────────────────────────────────────
+        # For claims like "X accounts for Y% of Z", generate separate queries
+        # for each component so the LLM can compute the ratio itself.
+        _share_patterns = [
+            # "X accounts for Y% of Z"
+            re.compile(r"(.+?)\s+accounts?\s+for\s+.*?(?:of|in)\s+(.+?)[\.\,]?\s*$", re.I),
+            # "X is Y% of Z" / "X makes up Y% of Z"
+            re.compile(r"(.+?)\s+(?:is|are|makes?\s+up|represents?|comprises?)\s+.*?%\s+of\s+(.+?)[\.\,]?\s*$", re.I),
+            # "X contributes Y% to Z" / "X contributes Y% of Z"
+            re.compile(r"(.+?)\s+contributes?\s+.*?(?:to|of)\s+(.+?)[\.\,]?\s*$", re.I),
+            # "X has a Y% share of Z"
+            re.compile(r"(.+?)\s+has\s+.*?share\s+of\s+(.+?)[\.\,]?\s*$", re.I),
+        ]
+        for pat in _share_patterns:
+            m = pat.match(claim)
+            if m:
+                part_a = m.group(1).strip()  # e.g. "The United States"
+                part_b = m.group(2).strip()  # e.g. "the world's nominal GDP"
+                # Extract the metric keyword (e.g. "GDP", "emissions", "trade")
+                metric_words = re.findall(r'\b(?:GDP|emissions?|trade|exports?|imports?|'
+                                          r'population|spending|output|production|consumption|'
+                                          r'revenue|budget|debt|energy|carbon)\b', claim, re.I)
+                metric = metric_words[0] if metric_words else ""
+                # Generate component queries (avoid duplicating metric if already present)
+                suffix_a = f" {metric}" if metric and metric.lower() not in part_a.lower() else ""
+                suffix_b = f" {metric}" if metric and metric.lower() not in part_b.lower() else ""
+                queries.append(f"{part_a}{suffix_a} {report_year}".strip())
+                queries.append(f"{part_b}{suffix_b} {report_year}".strip())
+                if metric:
+                    queries.append(f"{part_a} share of {part_b} {report_year}")
+                print(f"[Share decomposition] A='{part_a}' B='{part_b}' metric='{metric}'")
+                break
+
         # Use targeted queries that match actual stat-page content, not press releases
         official_hints: dict[str, str] = {
             "defence":     f"NATO members defence spending percent of GDP {report_year} who met 2 percent target list",
@@ -476,13 +512,13 @@ def generate_search_variations(claim: str) -> list[str]:
             "population":  f"UN population {report_year} country estimates table",
         }
         for t in topics:
-            if t in official_hints and len(queries) < 8:
+            if t in official_hints and len(queries) < 10:
                 queries.append(official_hints[t])
         # For defence claims, inject pinned HTML stat page URLs directly as queries.
         # Parallel fetches URLs passed as queries, so this bypasses PDF extraction issues.
         if "defence" in topics:
             for url in TOPIC_PINNED_URLS.get("defence", []):
-                if len(queries) < 8:
+                if len(queries) < 10:
                     queries.append(url)
     else:
         if not has_year:
@@ -497,7 +533,7 @@ def generate_search_variations(claim: str) -> list[str]:
             lang_code, lang_name = region
             queries.append(f"{claim} {lang_name} sources")
 
-    return queries[:8]
+    return queries[:10]
 
 
 def _recency_bonus(result: dict[str, Any]) -> int:

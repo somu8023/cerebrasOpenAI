@@ -782,6 +782,7 @@ function renderResultCard(data, claim) {
     // API response fields
     const searchSources = data.search_sources || [];
     const citedUrls = new Set(data.sources || []);
+    // Only show sources that were actually cited by the LLM in its verdict
     const citedSources = searchSources.filter(s => citedUrls.has(s.url));
     const displaySources = citedSources.length > 0 ? citedSources : searchSources;
     const reasoning = data.reason || data.reasoning || data.explanation || '';
@@ -790,6 +791,8 @@ function renderResultCard(data, claim) {
     const time = data.elapsed_seconds ? `${data.elapsed_seconds.toFixed(1)}s` : (data.time_taken ? `${data.time_taken.toFixed(1)}s` : '');
 
     // Map original 1-based source numbers (LLM's numbering) → sequential display numbers
+    // LLM references "Source N" based on position in searchSources; remap to
+    // sequential position in displaySources (cited-only list).
     const sourceNumMap = {};
     displaySources.forEach((s, idx) => {
         const origIdx = searchSources.indexOf(s);
@@ -854,7 +857,6 @@ function renderResultCard(data, claim) {
         ${displaySources.length ? `
         <div class="result-tab-panel${reasoning ? ' hidden' : ''}" data-tab="sources">
             <div class="result-sources">
-                ${searchSources.length > displaySources.length ? `<div style="font-size:0.72rem;color:var(--text-tertiary);padding:6px 0 10px;letter-spacing:0.02em;">${displaySources.length} cited &middot; ${searchSources.length} analyzed</div>` : ''}
                 <div class="source-list">
                     ${displaySources.map((s, idx) => renderSource(s, searchSources.indexOf(s), citedUrls, idx + 1)).join('')}
                 </div>

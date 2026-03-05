@@ -895,6 +895,44 @@ textarea::placeholder {
     transition: opacity var(--t-fast);
 }
 
+/* Keyboard shortcut badge inside button */
+.btn-shortcut {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.5;
+    transition: opacity var(--t-fast);
+    pointer-events: none;
+}
+
+.btn-shortcut kbd {
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #080a0e;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.5;
+    text-transform: none;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
+}
+
+.btn-verify:hover .btn-shortcut {
+    opacity: 0.75;
+}
+
+.btn-verify.is-loading .btn-shortcut {
+    display: none;
+}
+
 .btn-verify:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 24px rgba(212, 168, 83, 0.4);
