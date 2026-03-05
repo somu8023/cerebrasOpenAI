@@ -365,20 +365,12 @@ def health():
     })
 
 
+APP_VERSION = "1.0"
+
 @app.route('/api/version', methods=['GET'])
 def get_version():
-    """Return the current git commit hash for display in the UI."""
-    import subprocess
-    try:
-        sha = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            cwd=str(repo_root),
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-    except Exception:
-        sha = 'unknown'
-    return jsonify({"commit": sha})
+    """Return the current app version for display in the UI."""
+    return jsonify({"version": APP_VERSION})
 
 
 if __name__ == '__main__':

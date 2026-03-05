@@ -473,7 +473,7 @@
     <script>
         fetch('/api/version').then(r => r.json()).then(d => {
             const el = document.getElementById('versionBadge');
-            if (el && d.commit) el.textContent = 'v' + d.commit;
+            if (el && d.version) el.textContent = 'v' + d.version;
         }).catch(() => {});
     </script>
 </body>
