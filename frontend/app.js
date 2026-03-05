@@ -545,6 +545,8 @@ async function handleFactCheck() {
 
             if (data.verdict === 'TRUE') {
                 triggerHaptic('success');
+            } else if (data.verdict === 'MOSTLY_TRUE') {
+                triggerHaptic('success');
             } else if (data.verdict === 'FALSE') {
                 triggerHaptic('heavy');
             } else {
@@ -708,7 +710,7 @@ function setCubeStatus(text) {
     }
 }
 
-function formatReasoning(text) {
+function formatReasoning(text, sourceNumMap = {}) {
     if (!text) return '';
 
     // Strip leaked output lines — already shown in UI
@@ -746,8 +748,13 @@ function formatReasoning(text) {
     f = f.replace(/^(<br>\s*)+/, '');
 
     // Source N references → clickable citation chips that jump to the Sources tab
+    // Use sourceNumMap to translate original LLM numbers to sequential display numbers
     f = f.replace(/\bSource\s+(\d+)\b/g,
-        (_, n) => `Source <span class="src-ref" onclick="srcRefClick(this,${n})" title="Jump to Source ${n}">${n}</span>`);
+        (_, n) => {
+            const origN = parseInt(n);
+            const displayN = sourceNumMap[origN] || origN;
+            return `Source <span class="src-ref" onclick="srcRefClick(this,${origN})" title="Jump to Source ${displayN}">${displayN}</span>`;
+        });
 
     return f;
 }
@@ -768,19 +775,29 @@ function renderSubClaims(subClaims) {
 
 function renderResultCard(data, claim) {
     const verdict = (data.verdict || 'UNCERTAIN').toUpperCase();
-    const verdictClass = verdict === 'TRUE' ? 'true' : verdict === 'FALSE' ? 'false' : 'uncertain';
-    const icon = verdict === 'TRUE' ? '✓' : verdict === 'FALSE' ? '✕' : '?';
-    const label = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
+    const verdictClass = verdict === 'TRUE' ? 'true' : verdict === 'MOSTLY_TRUE' ? 'mostly_true' : verdict === 'FALSE' ? 'false' : 'uncertain';
+    const icon = verdict === 'TRUE' ? '✓' : verdict === 'MOSTLY_TRUE' ? '~' : verdict === 'FALSE' ? '✕' : '?';
+    const label = verdict === 'TRUE' ? 'TRUE' : verdict === 'MOSTLY_TRUE' ? 'MOSTLY TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
 
     // API response fields
     const searchSources = data.search_sources || [];
     const citedUrls = new Set(data.sources || []);
+    const citedSources = searchSources.filter(s => citedUrls.has(s.url));
+    const displaySources = citedSources.length > 0 ? citedSources : searchSources;
     const reasoning = data.reason || data.reasoning || data.explanation || '';
     const subClaims = data.sub_claims || [];
     const tokens = data.tokens_used ? `${(data.tokens_used / 1000).toFixed(1)}k tokens` : '';
     const time = data.elapsed_seconds ? `${data.elapsed_seconds.toFixed(1)}s` : (data.time_taken ? `${data.time_taken.toFixed(1)}s` : '');
 
-    const sourcesJson = escHtml(JSON.stringify(searchSources.slice(0, 3).map(s => ({ title: s.title || '', url: s.url || '' }))));
+    // Map original 1-based source numbers (LLM's numbering) → sequential display numbers
+    const sourceNumMap = {};
+    displaySources.forEach((s, idx) => {
+        const origIdx = searchSources.indexOf(s);
+        if (origIdx !== -1) sourceNumMap[origIdx + 1] = idx + 1;
+    });
+
+    const exportSources = citedSources.length > 0 ? citedSources : searchSources;
+    const sourcesJson = escHtml(JSON.stringify(exportSources.slice(0, 3).map(s => ({ title: s.title || '', url: s.url || '' }))));
 
     return `
     <div class="result-card" data-claim="${escHtml(claim)}" data-verdict="${verdict}" data-reasoning="${escHtml(reasoning)}" data-sources="${sourcesJson}">
@@ -824,21 +841,22 @@ function renderResultCard(data, claim) {
         ${(reasoning || searchSources.length) ? `
         <div class="result-tabs-bar">
             ${reasoning ? `<button class="result-tab active" onclick="switchResultTab(this,'reasoning')">Reasoning</button>` : ''}
-            ${searchSources.length ? `<button class="result-tab${reasoning ? '' : ' active'}" onclick="switchResultTab(this,'sources')">Sources <span class="tab-count">${searchSources.length}</span></button>` : ''}
+            ${displaySources.length ? `<button class="result-tab${reasoning ? '' : ' active'}" onclick="switchResultTab(this,'sources')">Sources <span class="tab-count">${displaySources.length}</span></button>` : ''}
         </div>
 
         ${reasoning ? `
         <div class="result-tab-panel" data-tab="reasoning">
             <div class="result-reason">
-                <p>${formatReasoning(reasoning)}</p>
+                <p>${formatReasoning(reasoning, sourceNumMap)}</p>
             </div>
         </div>` : ''}
 
-        ${searchSources.length ? `
+        ${displaySources.length ? `
         <div class="result-tab-panel${reasoning ? ' hidden' : ''}" data-tab="sources">
             <div class="result-sources">
+                ${searchSources.length > displaySources.length ? `<div style="font-size:0.72rem;color:var(--text-tertiary);padding:6px 0 10px;letter-spacing:0.02em;">${displaySources.length} cited &middot; ${searchSources.length} analyzed</div>` : ''}
                 <div class="source-list">
-                    ${searchSources.map((s, i) => renderSource(s, i, citedUrls)).join('')}
+                    ${displaySources.map((s, idx) => renderSource(s, searchSources.indexOf(s), citedUrls, idx + 1)).join('')}
                 </div>
             </div>
         </div>` : ''}` : ''}
@@ -887,8 +905,8 @@ function copyResult(btn) {
     const claim = card.dataset.claim || '';
     const verdict = card.dataset.verdict || '';
     const reasoning = card.dataset.reasoning || '';
-    const verdictEmoji = verdict === 'TRUE' ? '✅' : verdict === 'FALSE' ? '❌' : '❓';
-    const verdictLabel = verdict === 'TRUE' ? 'TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
+    const verdictEmoji = verdict === 'TRUE' ? '✅' : verdict === 'MOSTLY_TRUE' ? '🟡' : verdict === 'FALSE' ? '❌' : '❓';
+    const verdictLabel = verdict === 'TRUE' ? 'TRUE' : verdict === 'MOSTLY_TRUE' ? 'MOSTLY TRUE' : verdict === 'FALSE' ? 'FALSE' : 'UNCERTAIN';
 
     let sources = [];
     try { sources = JSON.parse(card.dataset.sources || '[]'); } catch {}
@@ -1037,7 +1055,7 @@ function _dlPdf(claim, verdict, reasoning, sources, slug, date) {
     addText(claim, { size: 11, color: [230, 230, 230] });
     y += 2;
 
-    const vColor = verdict === 'TRUE' ? [74, 222, 128] : verdict === 'FALSE' ? [248, 113, 113] : [251, 191, 36];
+    const vColor = verdict === 'TRUE' ? [74, 222, 128] : verdict === 'MOSTLY_TRUE' ? [45, 212, 191] : verdict === 'FALSE' ? [248, 113, 113] : [251, 191, 36];
     addText('VERDICT', { size: 8, bold: true, color: [212, 168, 83] });
     addText(verdict, { size: 14, bold: true, color: vColor });
     y += 2; addRule();
@@ -1068,7 +1086,7 @@ function _dlPdf(claim, verdict, reasoning, sources, slug, date) {
 }
 
 function _dlWord(claim, verdict, reasoning, sources, slug, date) {
-    const vColor = verdict === 'TRUE' ? '#16a34a' : verdict === 'FALSE' ? '#dc2626' : '#d97706';
+    const vColor = verdict === 'TRUE' ? '#16a34a' : verdict === 'MOSTLY_TRUE' ? '#0d9488' : verdict === 'FALSE' ? '#dc2626' : '#d97706';
     const cleanReasoning = (reasoning || '')
         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
         .replace(/\*(.*?)\*/g, '<i>$1</i>')
@@ -1152,17 +1170,18 @@ function srcRefClick(el, n) {
     }
 }
 
-function renderSource(s, i, citedUrls = new Set()) {
+function renderSource(s, i, citedUrls = new Set(), displayNum = null) {
     // search_sources shape: {url, title, quality_tier}
     const rawTier = s.quality_tier || s.tier || 'Other';
     const tierClass = rawTier.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const title = s.title || s.url || 'Source';
     const url = s.url || '#';
     const cited = citedUrls.has(url);
+    const visibleNum = displayNum !== null ? displayNum : i + 1;
 
     return `
-    <div class="source-item" data-source-num="${i + 1}" style="animation-delay:${i * 0.06}s">
-        <div class="source-num">${i + 1}</div>
+    <div class="source-item" data-source-num="${i + 1}" style="animation-delay:${visibleNum * 0.06}s">
+        <div class="source-num">${visibleNum}</div>
         <div class="source-tier ${tierClass}">${escHtml(rawTier)}</div>
         <div class="source-info">
             <div class="source-title">${escHtml(title)}</div>
@@ -1177,14 +1196,16 @@ function renderTextResults(data) {
     if (!results.length) return renderError('No claims were extracted from the text.');
 
     const trueCount = results.filter(r => (r.verdict || '').toUpperCase() === 'TRUE').length;
+    const mostlyTrueCount = results.filter(r => (r.verdict || '').toUpperCase() === 'MOSTLY_TRUE').length;
     const falseCount = results.filter(r => (r.verdict || '').toUpperCase() === 'FALSE').length;
-    const uncertainCount = results.length - trueCount - falseCount;
+    const uncertainCount = results.length - trueCount - mostlyTrueCount - falseCount;
 
     return `
     <div class="summary-bar">
         <div class="summary-stat"><strong>${results.length}</strong> Claims</div>
         <div class="summary-divider"></div>
         <div class="summary-stat true"><strong>${trueCount}</strong> True</div>
+        ${mostlyTrueCount ? `<div class="summary-stat mostly_true"><strong>${mostlyTrueCount}</strong> Mostly True</div>` : ''}
         <div class="summary-stat false"><strong>${falseCount}</strong> False</div>
         <div class="summary-stat uncertain"><strong>${uncertainCount}</strong> Uncertain</div>
     </div>
@@ -1391,8 +1412,8 @@ function loadHistory() {
     }
 
     list.innerHTML = checkHistory.map((h, i) => {
-        const vClass = h.verdict === 'true' ? 'true' : h.verdict === 'false' ? 'false' : 'uncertain';
-        const vLabel = h.verdict === 'true' ? 'True' : h.verdict === 'false' ? 'False' : 'Uncertain';
+        const vClass = h.verdict === 'true' ? 'true' : h.verdict === 'mostly_true' ? 'mostly_true' : h.verdict === 'false' ? 'false' : 'uncertain';
+        const vLabel = h.verdict === 'true' ? 'True' : h.verdict === 'mostly_true' ? 'Mostly True' : h.verdict === 'false' ? 'False' : 'Uncertain';
         const timeAgo = getTimeAgo(h.time);
         return `
         <div class="history-drawer-item" data-claim="${escHtml(h.claim)}" data-index="${i}">

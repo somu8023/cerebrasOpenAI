@@ -65,6 +65,10 @@ def score_source_quality(url: str) -> tuple[int, str]:
         "britannica.com", "jstor.org", "gallica.bnf.fr",
         "archives-nationales.culture.gouv.fr", "europeana.eu",
         "history.com", "bl.uk",
+        # Official stock exchanges & financial regulators
+        "bseindia.com", "nseindia.com",
+        "nyse.com", "nasdaq.com", "londonstockexchange.com",
+        "sgx.com", "jpx.co.jp", "hkex.com.hk",
         # Official sports governing bodies
         "icc-cricket.com", "bcci.tv",
         "fifa.com", "uefa.com",
@@ -145,6 +149,10 @@ TOPIC_DOMAIN_WHITELIST: dict[str, list[str]] = {
     "education":   ["unesco.org", "oecd.org", "nces.ed.gov"],
     "human_rights": ["hrw.org", "amnesty.org", "ohchr.org"],
     "science":     ["nature.com", "pubmed.ncbi.nlm.nih.gov", "nasa.gov"],
+    "finance":     ["bseindia.com", "nseindia.com", "sebi.gov.in", "rbi.org.in",
+                    "sec.gov", "nyse.com", "nasdaq.com", "londonstockexchange.com",
+                    "hkex.com.hk", "sgx.com", "jpx.co.jp",
+                    "bis.org", "imf.org", "worldbank.org"],
     "history":     ["britannica.com", "jstor.org", "gallica.bnf.fr",
                     "archives-nationales.culture.gouv.fr", "history.com",
                     "bbc.co.uk/history", "bl.uk", "europeana.eu"],
@@ -191,6 +199,9 @@ _TOPIC_PATTERNS: list[tuple[str, list[str]]] = [
     ("education",   ["literacy", r"\bschool\b", "university", "dropout", "graduation rate"]),
     ("human_rights", ["human rights", "freedom of press", "democracy index", "corruption index"]),
     ("science",     ["speed of light", "quantum", r"\bphysics\b", r"\bchemistry\b", r"\bspace\b", r"\bplanet\b"]),
+    ("finance",     [r"\bstock.?exchange\b", r"\bbourse\b", r"\bsecurities?.{0,20}regulat",
+                     r"\bstock.?market\b", r"\bIPO\b", r"\bshare.?market\b",
+                     r"\bSEBI\b", r"\bNSE\b", r"\bBSE\b", r"\bNYSE\b", r"\bNASDAQ\b"]),
     # Historical / regional industry claims (must come after trade so history overrides when both match)
     ("history",     [r"\b(19|20)th.{0,5}century\b", r"\bhistor(?:y|ical|ically)\b",
                      r"\bindustrial.{0,20}(?:decline|revolution|heritage)\b",
@@ -262,7 +273,7 @@ _NUMERIC_RE = re.compile(
 # For these, locale search adds noise, not signal.
 _INTERNATIONAL_TOPICS: set[str] = {
     "defence", "economics", "health", "environment",
-    "trade", "energy", "population",
+    "trade", "energy", "population", "finance",
 }
 
 # ── Indicators that a claim is about historical/regional context ──────────────

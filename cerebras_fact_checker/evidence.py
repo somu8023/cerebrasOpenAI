@@ -4,7 +4,7 @@ import textwrap
 from typing import Any
 
 
-def build_evidence_context(results: list[dict[str, Any]], max_chars: int = 8000) -> str:
+def build_evidence_context(results: list[dict[str, Any]], max_chars: int = 12000) -> str:
     blocks: list[str] = []
     
     if not results:

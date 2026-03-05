@@ -77,7 +77,7 @@ def fact_check_single_claim(
     claim: str,
     model: str,
     mode: str = "one-shot",
-    num_sources: int = 5,
+    num_sources: int = 10,
 ) -> dict[str, Any]:
     print(f"\nFact-checking claim: {claim}")
 
@@ -164,7 +164,11 @@ def fact_check_single_claim(
             pass
         raise
 
-    evidence_context = build_evidence_context(results)
+    # Fetch up to num_sources candidates but only pass top 8 to the LLM to
+    # control token budget (~12k chars / ~3k tokens for evidence).
+    # The full results list is still returned as search_sources for the frontend.
+    llm_results = results[:8]
+    evidence_context = build_evidence_context(llm_results)
 
     system_prompt_content = textwrap.dedent(
         """
@@ -227,6 +231,16 @@ def fact_check_single_claim(
         - If the combined evidence supports the claim → verdict: true
         - If the combined evidence contradicts the claim → verdict: false
 
+        MULTI-VERDICT RULE: For compound claims with multiple sub-claims:
+        - verdict "true":        ALL sub-claims are verified TRUE from sources.
+        - verdict "mostly_true": ≥1 sub-claim is verified TRUE, 0 are FALSE,
+                                 and ≥1 sub-claim is UNCERTAIN (not found in sources).
+                                 Use this when the core facts are confirmed but a
+                                 peripheral detail lacks direct source evidence.
+        - verdict "false":       ANY sub-claim is demonstrably FALSE.
+        - verdict "uncertain":   The CORE assertion cannot be verified at all
+                                 (no sub-claims are TRUE).
+
         Step 2 — ONLY if the sources contain NO relevant information at all:
         - verdict: uncertain
         - This should be rare. Most searches return at least partially relevant sources.
@@ -256,7 +270,7 @@ def fact_check_single_claim(
         sources. Do not treat the claim as permanently true because it was true historically.
         If data shows the situation has changed, the verdict must reflect the CURRENT state.
 
-        Even if UI only shows True / False / Uncertain, internally compute:
+        Even if UI only shows True / Mostly True / False / Uncertain, internally compute:
         - High confidence (direct numeric proof from matching recent years)
         - Medium confidence (strong evidence but indirect)
         - Low confidence (incomplete data or mismatched temporal data)
@@ -266,8 +280,8 @@ def fact_check_single_claim(
         
         Respond with STRICT JSON:
         {
-          "verdict": "true" | "false" | "uncertain",
-          "reason": "ALWAYS output EXACTLY TWO sections in this order (plain text, no markdown headers):\n\nEvaluation:\n• [Concise finding — cite Source N inline, e.g. '...confirmed by Source 2']\n• [Next finding or contradiction — cite Source N]\n• [Additional point if needed — cite Source N]\n\nConclusion:\n[One sentence: verdict and the single decisive fact.]\n\nRules: Keep each bullet under 20 words. Cite only the source number (e.g. Source 3), never include domain, year, or quotes. No Claim type section. No Evidence section.",
+          "verdict": "true" | "mostly_true" | "uncertain" | "false",
+          "reason": "ALWAYS output EXACTLY TWO sections in this order (plain text, no markdown headers):\n\nEvaluation:\n• [Concise finding — cite Source N inline, e.g. '...confirmed by Source 2']\n• [Next finding or contradiction — cite Source N]\n• [Additional point if needed — cite Source N]\n\nConclusion:\n[One sentence in natural English — NEVER write the raw verdict value (do NOT write 'mostly_true', 'uncertain', etc.).\nInstead use these templates:\n  true        → 'The claim is fully supported — [decisive fact].'\n  mostly_true → 'Most of the claim checks out — [confirmed facts] — but [unverified detail] could not be confirmed from available sources.'\n  false       → 'The claim is contradicted — [decisive fact].'\n  uncertain   → 'The core assertion could not be verified from available sources.']\n\nRules: Keep each bullet under 20 words. Cite only the source number (e.g. Source 3), never include domain, year, or quotes. No Claim type section. No Evidence section.",
           "sub_claims": [
             {"claim": "Brief description of sub-claim or component", "status": "true" | "false" | "uncertain"}
           ],
@@ -357,7 +371,7 @@ def fact_check_single_claim(
     # Stage 3: the reason field may contain unescaped quotes/newlines.
     # Extract verdict and top_sources with regex, preserve raw reason text.
     if data is None:
-        verdict_m  = re.search(r'"verdict"\s*:\s*"(true|false|uncertain)"', raw, re.IGNORECASE)
+        verdict_m  = re.search(r'"verdict"\s*:\s*"(true|mostly_true|false|uncertain)"', raw, re.IGNORECASE)
         reason_m   = re.search(r'"reason"\s*:\s*"(.*?)"(?:\s*,|\s*\})', raw, re.DOTALL)
         sources_m  = re.search(r'"top_sources"\s*:\s*(\[[^\]]*\])', raw, re.DOTALL)
         if verdict_m:
@@ -386,6 +400,8 @@ def fact_check_single_claim(
         raw_lower = raw.lower()
         if '"verdict": "false"' in raw_lower or '"verdict":"false"' in raw_lower:
             verdict_val = "false"
+        elif '"verdict": "mostly_true"' in raw_lower or '"verdict":"mostly_true"' in raw_lower:
+            verdict_val = "mostly_true"
         elif '"verdict": "true"' in raw_lower or '"verdict":"true"' in raw_lower:
             verdict_val = "true"
         else:
@@ -406,7 +422,7 @@ def fact_check_single_claim(
         print(f"Parsed via stage-4 keyword fallback. Verdict: {verdict_val}, sub_claims: {len(sub_claims_val4)}")
 
     verdict = str(data.get("verdict", "uncertain")).lower()
-    if verdict not in {"true", "false", "uncertain"}:
+    if verdict not in {"true", "mostly_true", "false", "uncertain"}:
         verdict = "uncertain"
 
     # If reason is empty but the model provided internal reasoning,
@@ -453,9 +469,10 @@ def fact_check_single_claim(
 
     # Color codes for verdict
     colors = {
-        "true": "\033[92m",    # Green
-        "false": "\033[91m",   # Red
-        "uncertain": "\033[93m"  # Amber/Yellow
+        "true": "\033[92m",          # Green
+        "mostly_true": "\033[96m",   # Cyan
+        "false": "\033[91m",         # Red
+        "uncertain": "\033[93m"      # Amber/Yellow
     }
     reset_color = "\033[0m"
     
